@@ -67,25 +67,22 @@
     border: 2px solid rgba(255,255,255,.55); box-shadow: 0 2px 5px rgba(0,0,0,.4);
   }
 
-  /* 포커 칩 — 비스듬히 본 타원, 옆면(두께)이 보이게 (이모지 미사용) */
+  /* 포커 칩 — 비스듬히 본 타원, 두께(옆면)와 가운데 면. 균일 간격으로 층층이 쌓이게. */
   .chip {
-    --face: #ff7b7b; --edge: #d23c3c; --rim: #9e2424;
+    --face: #ff7b7b; --edge: #d23c3c; --rim: #8e1f1f;
     position: relative;
-    width: 30px; height: 12px; border-radius: 50%;
-    background:
-      radial-gradient(ellipse 60% 70% at 50% 38%, rgba(255,255,255,.55), transparent 60%),
-      repeating-conic-gradient(var(--edge) 0 18deg, var(--face) 18deg 36deg);
-    border: 1px solid rgba(0,0,0,.25);
-    box-shadow: 0 2px 0 var(--rim), 0 3px 0 color-mix(in srgb, var(--rim) 75%, #000), 0 5px 4px rgba(0,0,0,.45);
+    width: 30px; height: 14px; border-radius: 50%;
+    background: radial-gradient(ellipse 75% 85% at 50% 30%, var(--face), var(--edge) 80%);
+    box-shadow: 0 2px 0 var(--rim), 0 4px 3px rgba(0,0,0,.4);
   }
-  .chip::after { /* 가운데 면 */
-    content: ''; position: absolute; inset: 22% 28%; border-radius: 50%;
-    background: var(--face); border: 1px dashed rgba(255,255,255,.7);
+  .chip::after { /* 가운데 면(점선 테) */
+    content: ''; position: absolute; inset: 3px 8px; border-radius: 50%;
+    border: 1px dashed rgba(255,255,255,.6);
   }
-  .chip.r { --face:#ff6b6b; --edge:#d23c3c; --rim:#8e1f1f; }
-  .chip.b { --face:#6fb1ff; --edge:#2f5fa8; --rim:#1d3c6e; }
-  .chip.g { --face:#5fd58c; --edge:#1e8a52; --rim:#125f38; }
-  .chip.k { --face:#5a5a5a; --edge:#222; --rim:#000; }
+  .chip.r { --face:#ff7b7b; --edge:#d23c3c; --rim:#8e1f1f; }
+  .chip.b { --face:#7bb3ff; --edge:#2f5fa8; --rim:#1d3c6e; }
+  .chip.g { --face:#6fd99a; --edge:#1e8a52; --rim:#125f38; }
+  .chip.k { --face:#6f6f6f; --edge:#262626; --rim:#000; }
   .seat .who { min-width: 0; flex: 1; }
   .seat .nm { font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .seat .chips { font-size: 11px; color: #ffe08a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -141,6 +138,12 @@
   .card.selDiscard { outline: 3px solid var(--red); outline-offset: 1px; transform: translateY(-12px); }
   .card.selOpen { outline: 3px solid #58d68d; outline-offset: 1px; transform: translateY(-12px); }
   .card.best { outline: 3px solid var(--gold); outline-offset: 1px; box-shadow: 0 0 12px rgba(245,197,66,.7); }
+  /* 분배 중 뒷면(날아오는 동안) — 절반 돌면 앞면으로 교체 */
+  .card.dealback {
+    background: repeating-linear-gradient(45deg, #4a5fa5 0 7px, #3c4f8c 7px 14px), linear-gradient(#4a5fa5, #34457a);
+    border: 2px solid #fff; color: transparent;
+  }
+  .card.dealback .r, .card.dealback .s { visibility: hidden; }
   .card.dealIn { animation: dealIn .3s cubic-bezier(.2,.7,.3,1.2) both; }
   @keyframes dealIn {
     from { transform: translate(var(--dx, 0), -180px) scale(.5) rotate(-12deg); opacity: 0; }
@@ -160,15 +163,15 @@
   /* 칩 기둥(종류별로 쌓임) */
   #chipPile { display: flex; gap: 9px; justify-content: center; align-items: flex-end; min-height: 66px; padding-bottom: 5px; }
   .stack { display: flex; flex-direction: column-reverse; align-items: center; }
-  .stack .chip { margin-top: -6px; }
+  .stack .chip { margin-top: -11px; } /* 14px 높이에서 약 3px 띠만 보이게 — 촘촘·균일 */
   .stack .chip:first-child { margin-top: 0; }
   .chip.pop { animation: chipPop .25s ease both; }
   @keyframes chipPop { from { transform: translateY(-14px) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
   /* 내 보유 칩 스택(작게) */
   #myStack { display: flex; gap: 6px; align-items: flex-end; min-height: 28px; margin-left: auto; padding-bottom: 4px; }
-  #myStack .chip { width: 22px; height: 9px; }
-  #myStack .chip::after { border-width: 1px; }
-  #myStack .stack .chip { margin-top: -5px; }
+  #myStack .chip { width: 22px; height: 11px; box-shadow: 0 2px 0 var(--rim), 0 3px 2px rgba(0,0,0,.4); }
+  #myStack .chip::after { inset: 2px 6px; }
+  #myStack .stack .chip { margin-top: -8px; }
   #myStack .stack .chip:first-child { margin-top: 0; }
   /* Total / Call 박스 */
   #potBox {

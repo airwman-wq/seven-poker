@@ -53,6 +53,7 @@ function backToLobby(): void {
   if (soloTimer) { clearTimeout(soloTimer); soloTimer = null; }
   lastView = null;
   trk.phase = ''; trk.calloutKey = ''; trk.street = 0; trk.myTurn = false; // 다음 게임 시작 멘트 위해 초기화
+  scatterEls.forEach((el) => el.remove()); scatterEls = []; // 흩뿌린 칩 정리
   show('lobby');
 }
 
@@ -74,6 +75,8 @@ const trk = { calloutKey: '', myTurn: false, phase: '', street: 0 };
 let justDealt = false;            // 이번 렌더에서 카드 펼침 애니메이션을 줄지
 let pendingFly: { seat: number; amount: number } | null = null; // 칩 날리기 예약(좌석+금액)
 let seatActs: Record<number, string> = {}; // 좌석별 이번 라운드 마지막 액션(체크/콜/따당…) 표시용
+let scatterEls: HTMLElement[] = []; // 중앙에 흩뿌려진(아직 안 모은) 베팅 칩들
+let pendingAnte = false;           // 새 판 시작 시 기본 칩(앤티) 걷는 연출 예약
 const ACT_SFX: Record<string, () => void> = {
   체크: sfx.check, 삥: sfx.bet, 콜: sfx.chip, 따당: sfx.bet, 하프: sfx.bet, 다이: sfx.die,
 };
@@ -137,16 +140,18 @@ function chipColors(amount: number, cap: number): string[] {
   return out.slice(0, cap);
 }
 
-// 베팅한 자리(내 스택/상대 좌석)에서 중앙 판돈 더미 '위로' 칩이 날아가 쌓이는 연출.
-// 칩 색은 베팅 금액의 액면가와 일치, 도착점은 더미 윗면.
+// 베팅하면 그 자리(내 스택/상대 좌석)에서 칩이 중앙으로 날아가 '랜덤하게 흩뿌려져' 잔류한다.
+// 칩 색은 베팅 금액의 액면가와 일치. 흩뿌린 칩들은 베팅 라운드가 끝날 때 gatherChips()로 모은다.
+function scatterTarget(): { cx: number; cy: number } {
+  const c = $('center').getBoundingClientRect();
+  return { cx: c.left + c.width / 2, cy: c.top + c.height / 2 };
+}
 function flyChips(seatIdx: number, amount: number, mySeat: number): void {
   const fromEl = seatIdx === mySeat ? $('myStack') : document.querySelector(`.seat[data-seat="${seatIdx}"]`);
-  const pile = $('chipPile');
-  if (!fromEl || !pile) return;
+  if (!fromEl) return;
   const f = (fromEl as HTMLElement).getBoundingClientRect();
-  const p = pile.getBoundingClientRect();
   const sx = f.left + f.width / 2, sy = f.top + f.height / 2;
-  const tx = p.left + p.width / 2, ty = p.top + 8; // 더미 윗면에 쌓이도록
+  const { cx, cy } = scatterTarget();
   const colors = chipColors(amount, 8);
   if (!colors.length) colors.push('r');
   colors.forEach((color, i) => {
@@ -155,20 +160,44 @@ function flyChips(seatIdx: number, amount: number, mySeat: number): void {
     chip.style.left = `${sx}px`;
     chip.style.top = `${sy}px`;
     document.body.append(chip);
-    const jx = ((i % 4) - 1.5) * 7, jy = (i % 3) * 3; // 더미 위에 살짝 흩뿌려 쌓인 느낌
+    // 중앙 흩뿌림 지점(랜덤)
+    const rx = cx + (Math.random() * 2 - 1) * 58;
+    const ry = cy + (Math.random() * 2 - 1) * 30;
     const anim = chip.animate(
       [
         { transform: 'translate(-50%,-50%) scale(.45)', opacity: 0.2 },
         { opacity: 1, offset: 0.2 },
-        { transform: `translate(calc(${tx - sx + jx}px - 50%), calc(${ty - sy + jy}px - 50%)) scale(1)`, opacity: 1 },
+        { transform: `translate(calc(${rx - sx}px - 50%), calc(${ry - sy}px - 50%)) scale(1)`, opacity: 1 },
       ],
-      { duration: 440, delay: i * 48, easing: 'cubic-bezier(.3,.6,.4,1)', fill: 'forwards' },
+      { duration: 430, delay: i * 45, easing: 'cubic-bezier(.3,.6,.4,1)', fill: 'forwards' },
     );
-    anim.onfinish = () => {
-      chip.remove();
-      pile.classList.remove('bump'); void pile.offsetWidth; pile.classList.add('bump');
-    };
+    anim.onfinish = () => { chip.style.transform = 'translate(-50%,-50%)'; chip.style.left = `${rx}px`; chip.style.top = `${ry}px`; };
+    scatterEls.push(chip);
   });
+}
+
+// 베팅 라운드가 끝나면 흩뿌린 칩들이 가운데 더미로 '싸사삭' 모인다.
+function gatherChips(): void {
+  if (!scatterEls.length) return;
+  const pile = $('chipPile');
+  const p = pile.getBoundingClientRect();
+  const tx = p.left + p.width / 2, ty = p.top + p.height / 2;
+  const els = scatterEls;
+  scatterEls = [];
+  sfx.chip(); // 싸사삭
+  els.forEach((el, i) => {
+    const r = el.getBoundingClientRect();
+    const dx = tx - (r.left + r.width / 2), dy = ty - (r.top + r.height / 2);
+    const a = el.animate(
+      [
+        { transform: 'translate(-50%,-50%)' },
+        { transform: `translate(calc(${dx}px - 50%), calc(${dy}px - 50%))` },
+      ],
+      { duration: 280, delay: i * 22, easing: 'cubic-bezier(.5,0,.7,1)', fill: 'forwards' },
+    );
+    a.onfinish = () => el.remove();
+  });
+  setTimeout(() => { pile.classList.remove('bump'); void pile.offsetWidth; pile.classList.add('bump'); }, 280 + els.length * 22);
 }
 
 const ACT_VOICE: Record<string, Parameters<typeof voice>[0]> = {
@@ -178,9 +207,9 @@ const ACT_VOICE: Record<string, Parameters<typeof voice>[0]> = {
 function runTransitions(v: View): void {
   // 게임 첫 진입 시 시작 멘트
   if (!trk.phase) setTimeout(() => voice('start'), 200);
-  // 카드 분배(초이스 진입) / 새 오픈 카드(스트리트 증가) — 새 라운드면 좌석 액션 표시 초기화
-  if (v.phase === 'choose' && trk.phase !== 'choose') { sfx.deal(); justDealt = true; seatActs = {}; }
-  if (v.phase === 'betting' && v.street > trk.street && trk.phase) { sfx.card(); seatActs = {}; }
+  // 카드 분배(초이스 진입) / 새 오픈 카드(스트리트 증가) — 라운드 끝나면 흩뿌린 칩 모으고, 좌석 액션 표시 초기화
+  if (v.phase === 'choose' && trk.phase !== 'choose') { gatherChips(); sfx.deal(); justDealt = true; seatActs = {}; pendingAnte = true; }
+  if (v.phase === 'betting' && v.street > trk.street && trk.phase) { gatherChips(); sfx.card(); seatActs = {}; }
 
   // 액션 콜아웃 + 효과음 + 성우 (+ 베팅이면 칩 날리기 예약)
   if (v.lastAction) {
@@ -212,7 +241,8 @@ function runTransitions(v: View): void {
   trk.street = v.street;
 }
 
-// 카드가 화면 최상단 가운데(딜러 덱)에서 각 카드의 정확한 최종 좌표로 날아와 펼쳐지는 분배 연출
+// 카드가 화면 최상단 가운데(딜러 덱)에서 각 카드의 정확한 최종 좌표로 날아오는 분배 연출.
+// 내 패(큰 카드)는 뒷면으로 날아와 자리에서 뒤집히고(플립), 상대 패(작은 카드)는 단순 비행.
 function animateDeal(): void {
   const cx = window.innerWidth / 2; // 화면 가로 중앙
   const cy = 6;                     // 화면 최상단
@@ -222,14 +252,31 @@ function animateDeal(): void {
     const r = el.getBoundingClientRect(); // 최종 위치(정확 좌표)
     const dx = cx - (r.left + r.width / 2);
     const dy = cy - (r.top + r.height / 2);
-    el.animate(
-      [
-        { transform: `translate(${dx}px, ${dy}px) scale(.28) rotate(-12deg)`, opacity: 0 },
-        { opacity: 1, offset: 0.25 },
-        { transform: 'none', opacity: 1 },
-      ],
-      { duration: 340, delay: i * 70, easing: 'cubic-bezier(.2,.7,.3,1.05)', fill: 'backwards' },
-    );
+    const delay = i * 80;
+    const mine = !el.classList.contains('sm'); // 내 큰 카드만 플립
+    if (mine) {
+      el.classList.add('dealback'); // 날아오는 동안 뒷면
+      el.style.transformStyle = 'preserve-3d';
+      el.animate(
+        [
+          { transform: `translate(${dx}px, ${dy}px) scale(.3) rotateY(180deg)`, opacity: 0 },
+          { opacity: 1, offset: 0.2 },
+          { transform: 'translate(0,0) scale(1) rotateY(0deg)', opacity: 1 },
+        ],
+        { duration: 560, delay, easing: 'cubic-bezier(.2,.7,.3,1.05)', fill: 'backwards' },
+      );
+      // 자리에 닿아 절반쯤 돌았을 때(edge-on) 앞면으로 전환 + 카드 소리
+      setTimeout(() => { el.classList.remove('dealback'); sfx.card(); }, delay + 330);
+    } else {
+      el.animate(
+        [
+          { transform: `translate(${dx}px, ${dy}px) scale(.28) rotate(-12deg)`, opacity: 0 },
+          { opacity: 1, offset: 0.25 },
+          { transform: 'none', opacity: 1 },
+        ],
+        { duration: 340, delay, easing: 'cubic-bezier(.2,.7,.3,1.05)', fill: 'backwards' },
+      );
+    }
   });
 }
 
@@ -373,6 +420,12 @@ function render(v: View): void {
   if (justDealt) { requestAnimationFrame(() => animateDeal()); justDealt = false; }
   // 칩 날리기(베팅 직후) — 새 DOM 좌표 기준으로 실행
   if (pendingFly != null) { const pf = pendingFly; pendingFly = null; requestAnimationFrame(() => flyChips(pf.seat, pf.amount, v.mySeat)); }
+  // 새 판 시작 — 각 자리에서 기본 칩(앤티) 걷는 연출
+  if (pendingAnte) {
+    pendingAnte = false;
+    const ms = v.mySeat, amt = v.baseBet, n = v.seats.length;
+    for (let i = 0; i < n; i++) setTimeout(() => flyChips(i, amt, ms), 140 + i * 110);
+  }
 
   // 오토 진행 예약
   scheduleAuto(v);
@@ -398,10 +451,18 @@ function renderMyCards(v: View): void {
   const box = $('myCards');
   box.innerHTML = '';
   const choosing = v.phase === 'choose' && !v.seats[v.mySeat].chosen;
-  v.myCards.forEach((c) => {
+  // 숫자 높은 순으로 정렬해서 족보가 한눈에 보이게
+  const sorted = [...v.myCards].sort((a, b) => b.rank - a.rank);
+  // 현재 족보를 이루는 카드(강조용) — 선택 중에는 표시 안 함(선택 테두리와 혼동 방지)
+  let bestIds = new Set<number>();
+  if (!choosing && v.myCards.length) {
+    try { bestIds = new Set((v.myCards.length >= 5 ? evalBest(v.myCards) : evalOpen(v.myCards)).cards.map((c) => c.id)); } catch { /* 무시 */ }
+  }
+  sorted.forEach((c) => {
     const el = cardEl(c);
     if (justDealt) el.classList.add('dealt');
     if (!choosing && !v.myOpenIds.includes(c.id)) el.classList.add('hiddenMark');
+    if (!choosing && bestIds.has(c.id)) el.classList.add('best');
     if (choosing) {
       el.classList.add('mine');
       if (pick.discardId === c.id) el.classList.add('selDiscard');
@@ -637,7 +698,16 @@ document.addEventListener('click', (e) => {
 }, true);
 
 $('btnSolo').onclick = () => { unlock(); solo = null; startSolo(); };
-$('btnMulti').onclick = () => { unlock(); void startMulti(); };
+$('btnMulti').onclick = () => {
+  unlock();
+  if (__DEMO__) { toast('데모에서는 혼자 연습만 가능합니다 (온라인 대전은 서버 필요)'); return; }
+  void startMulti();
+};
+if (__DEMO__) {
+  const mb = $('btnMulti') as HTMLButtonElement;
+  mb.textContent = '온라인 대전 (데모 불가)';
+  mb.style.opacity = '0.5';
+}
 $('btnFillAi').onclick = () => { net?.send('fillAi'); };
 $('btnWaitLeave').onclick = () => backToLobby();
 $('btnRematch').onclick = () => rematch();
