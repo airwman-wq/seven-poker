@@ -1,0 +1,29 @@
+{
+  "name": "seven-poker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "7포커 공유 룰 엔진 (서버/클라 공유) + 토스용 클라이언트",
+  "scripts": {
+    "test": "tsx src/engine/hand.test.ts && tsx src/engine/game.test.ts",
+    "test:server": "AI_STEP_MS=50 tsx src/server/room.test.ts",
+    "server": "tsx src/server/index.ts",
+    "start": "tsx src/server/index.ts",
+    "build": "vite build",
+    "dev:server": "tsx watch src/server/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@colyseus/testing": "^0.17.11",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.9.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vite": "^8.0.14"
+  },
+  "dependencies": {
+    "@colyseus/sdk": "^0.17.42",
+    "@colyseus/tools": "^0.17.19",
+    "colyseus": "^0.17.10"
+  }
+}
