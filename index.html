@@ -4,6 +4,33 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 <title>7포커</title>
+<script>
+  // 카톡 등 인앱 브라우저로 열리면 기기 기본 브라우저로 자동 전환(인앱은 오디오·레이아웃 문제 많음).
+  (function () {
+    try {
+      var ua = navigator.userAgent.toLowerCase();
+      var url = location.href;
+      var isAndroid = ua.indexOf('android') > -1;
+      var isKakao = ua.indexOf('kakaotalk') > -1;
+      var otherInApp = /(line|instagram|fban|fbav|naver|daumapps|band|everytimeapp|trill|snapchat)/.test(ua);
+      if (isKakao) {
+        // 카카오톡: 외부 기본 브라우저로 열기
+        location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+      } else if (otherInApp && isAndroid) {
+        // 안드로이드 기타 인앱: 크롬 인텐트로
+        location.href = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end';
+      }
+      // 전환이 안 되면(특히 iOS 인앱) 안내 배너 표시
+      if (isKakao || otherInApp) {
+        setTimeout(function () {
+          if (document.hidden) return; // 외부 브라우저로 떠나 백그라운드면 통과
+          var b = document.getElementById('inappGuide');
+          if (b) b.style.display = 'block';
+        }, 1600);
+      }
+    } catch (e) { /* 무시 */ }
+  })();
+</script>
 <style>
   :root {
     --felt: #1e6b46;
@@ -285,6 +312,17 @@
   #audioPanel label { font-size: 13px; font-weight: 700; color: #cfe8da; display: flex; flex-direction: column; gap: 7px; }
   #audioPanel input[type=range] { width: 170px; accent-color: var(--gold); }
 
+  #inappGuide {
+    display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 70;
+    background: rgba(20,40,28,.97); color: #fff; padding: 14px 16px; font-size: 14px; line-height: 1.5;
+    text-align: center; border-bottom: 2px solid var(--gold); box-shadow: 0 4px 14px rgba(0,0,0,.5);
+  }
+  #inappGuide b { color: var(--gold); }
+  #inappGuide button {
+    display: block; margin: 10px auto 0; padding: 8px 18px; border: none; border-radius: 10px;
+    background: var(--gold); color: #2a1a05; font-weight: 800; font-size: 14px;
+  }
+
   #toast {
     position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
     background: rgba(0,0,0,.85); padding: 10px 18px; border-radius: 10px;
@@ -354,6 +392,12 @@
         <button id="btnExit" class="btn ghost">나가기</button>
       </div>
     </div>
+  </div>
+
+  <div id="inappGuide">
+    📱 인앱 브라우저예요. <b>우측 위 메뉴(⋯ 또는 공유)</b>에서<br>
+    <b>‘다른 브라우저로 열기’ / Safari로 열기</b>를 누르면 더 잘 동작해요.
+    <button onclick="this.parentNode.style.display='none'">닫기</button>
   </div>
 
   <div id="toast"></div>
