@@ -3,7 +3,7 @@
 
 import { Card, SUIT_SYMBOL, rankLabel } from '../engine/cards';
 import { SevenPokerGame, aiChoose, aiAct, BASE_BET, START_CHIPS, BetAction, ACTION_NAMES } from '../engine/game';
-import { evalBest, CAT } from '../engine/hand';
+import { evalBest, evalOpen, catName, CAT } from '../engine/hand';
 import { buildView, GameView } from '../engine/view';
 import { connectGame, fetchOnlineCount, NetHandle } from './net';
 import { sfx, voice, bgm, unlock, setSoundEnabled, isSoundEnabled,
@@ -73,6 +73,7 @@ function backEl(small = false): HTMLElement {
 const trk = { calloutKey: '', myTurn: false, phase: '', street: 0 };
 let justDealt = false;            // 이번 렌더에서 카드 펼침 애니메이션을 줄지
 let pendingFly: { seat: number; amount: number } | null = null; // 칩 날리기 예약(좌석+금액)
+let seatActs: Record<number, string> = {}; // 좌석별 이번 라운드 마지막 액션(체크/콜/따당…) 표시용
 const ACT_SFX: Record<string, () => void> = {
   체크: sfx.check, 삥: sfx.bet, 콜: sfx.chip, 따당: sfx.bet, 하프: sfx.bet, 다이: sfx.die,
 };
@@ -177,9 +178,9 @@ const ACT_VOICE: Record<string, Parameters<typeof voice>[0]> = {
 function runTransitions(v: View): void {
   // 게임 첫 진입 시 시작 멘트
   if (!trk.phase) setTimeout(() => voice('start'), 200);
-  // 카드 분배(초이스 진입) / 새 오픈 카드(스트리트 증가)
-  if (v.phase === 'choose' && trk.phase !== 'choose') { sfx.deal(); justDealt = true; }
-  if (v.phase === 'betting' && v.street > trk.street && trk.phase) sfx.card();
+  // 카드 분배(초이스 진입) / 새 오픈 카드(스트리트 증가) — 새 라운드면 좌석 액션 표시 초기화
+  if (v.phase === 'choose' && trk.phase !== 'choose') { sfx.deal(); justDealt = true; seatActs = {}; }
+  if (v.phase === 'betting' && v.street > trk.street && trk.phase) { sfx.card(); seatActs = {}; }
 
   // 액션 콜아웃 + 효과음 + 성우 (+ 베팅이면 칩 날리기 예약)
   if (v.lastAction) {
@@ -188,6 +189,7 @@ function runTransitions(v: View): void {
     if (k !== trk.calloutKey) {
       trk.calloutKey = k;
       fireCallout(v.seats[a.seat].name, a.label, a.amount);
+      seatActs[a.seat] = a.label + (a.amount > 0 ? ` ${fmt(a.amount)}` : ''); // 그 사람 자리에 표시
       (ACT_SFX[a.label] ?? sfx.chip)();
       if (ACT_VOICE[a.label]) setTimeout(() => voice(ACT_VOICE[a.label]), 120);
       if (a.amount > 0) pendingFly = { seat: a.seat, amount: a.amount };
@@ -311,15 +313,17 @@ function render(v: View): void {
           <div class="chips">${fmt(s.chips)} G</div>
         </div>
       </div>
-      ${s.streetBet > 0 ? `<div class="seatbet">+${fmt(s.streetBet)}</div>` : ''}`;
+      ${s.streetBet > 0 ? `<div class="seatbet">+${fmt(s.streetBet)}</div>` : ''}
+      ${seatActs[i] ? `<div class="seatact">${esc(seatActs[i])}</div>` : ''}`;
     const cards = document.createElement('div');
     cards.className = 'cards';
     const oppCards: HTMLElement[] = [];
     if (v.phase === 'choose' && !s.chosen) {
       for (let k = 0; k < 4; k++) oppCards.push(backEl(true));
     } else {
-      for (const c of s.openCards) oppCards.push(cardEl(c, true));
+      // 뒷면(히든)을 먼저 깔고 공개 카드를 위로 — 많이 겹쳐도 앞면이 안 가려지게
       for (let k = 0; k < s.hiddenCount; k++) oppCards.push(backEl(true));
+      for (const c of s.openCards) oppCards.push(cardEl(c, true));
     }
     oppCards.forEach((el) => {
       if (justDealt) el.classList.add('dealt');
@@ -350,12 +354,17 @@ function render(v: View): void {
   ].join(' ');
   $('myInfo').innerHTML = `
     ${avatarHtml(meSeat.name)}
-    <div class="who"><div class="nm">${esc(meSeat.name)} ${myBadges}</div>
+    <div class="who"><div class="nm">${esc(meSeat.name)} ${myBadges}
+      ${seatActs[v.mySeat] ? `<span class="seatact inline">${esc(seatActs[v.mySeat])}</span>` : ''}</div>
       <div class="chips">${fmt(meSeat.chips)} G${meSeat.streetBet > 0 ? ` · 베팅 +${fmt(meSeat.streetBet)}` : ''}</div></div>
     <div id="myStack"></div>`;
   // 내 보유 칩 스택(낮게) — 칩이 늘 때만 pop
   renderStacks($('myStack'), meSeat.chips, 12, meSeat.chips > prevMyChips);
   prevMyChips = meSeat.chips;
+  // 내 현재 족보(투페어/트리플/풀하우스…) 표시
+  $('myHand').textContent = v.myCards.length
+    ? `내 패: ${catName((v.myCards.length >= 5 ? evalBest(v.myCards) : evalOpen(v.myCards)).cat)}`
+    : '';
   renderTimer(v);
   renderMyCards(v);
   renderActions(v);

@@ -89,11 +89,21 @@
   .seat .who { min-width: 0; flex: 1; }
   .seat .nm { font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .seat .chips { font-size: 11px; color: #ffe08a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .seat .cards { display: flex; margin-top: 6px; justify-content: center; min-height: 62px; padding-left: 12px; }
+  .seat .cards { display: flex; flex-wrap: wrap; margin-top: 6px; justify-content: center; align-content: flex-start;
+    gap: 3px; min-height: 94px; max-width: 134px; margin-left: auto; margin-right: auto; }
 
   .badge { font-size: 9px; background: var(--red); border-radius: 6px; padding: 1px 5px; font-weight: 800; white-space: nowrap; }
   .badge.boss { background: var(--blue); }
   .badge.allin { background: #b13ad2; }
+
+  /* 좌석에 그 사람이 한 액션(체크/콜/따당…) 표시 */
+  .seatact {
+    position: absolute; top: -9px; left: 6px; font-size: 11px; font-weight: 800;
+    color: #fff; background: linear-gradient(#3c79c9, #234e87);
+    border: 1px solid rgba(255,255,255,.6); border-radius: 10px; padding: 2px 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,.45); white-space: nowrap; z-index: 2;
+  }
+  .seatact.inline { position: static; display: inline-block; margin-left: 4px; top: 0; padding: 1px 7px; }
 
   /* 좌석 위에 뜨는 베팅칩 표시 */
   .seatbet {
@@ -119,15 +129,14 @@
     border: 2px solid #fff;
   }
   .card.back::after { content: '🂠'; color: rgba(255,255,255,.35); font-size: 22px; }
-  /* 작은 카드(상대) — 코너 인덱스만, 많이 겹쳐 배치(세로 폭 절약) */
+  /* 작은 카드(상대) — 겹치지 않고 2줄로 펼쳐 보기 쉽게 */
   .card.sm {
-    width: 44px; height: 62px; border-radius: 6px; margin-left: -33px;
-    justify-content: flex-start; align-items: flex-start; padding: 4px 0 0 4px;
+    width: 30px; height: 44px; border-radius: 5px;
+    justify-content: center; align-items: center; padding: 0;
   }
-  .card.sm:first-child { margin-left: 0; }
-  .card.sm .r { font-size: 18px; }
-  .card.sm .s { font-size: 15px; margin-top: 1px; }
-  .card.sm.back::after { font-size: 20px; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .card.sm .r { font-size: 15px; }
+  .card.sm .s { font-size: 13px; margin-top: 1px; }
+  .card.sm.back::after { font-size: 16px; }
   .card.mine { cursor: pointer; transition: transform .12s; }
   .card.selDiscard { outline: 3px solid var(--red); outline-offset: 1px; transform: translateY(-12px); }
   .card.selOpen { outline: 3px solid #58d68d; outline-offset: 1px; transform: translateY(-12px); }
@@ -208,6 +217,8 @@
   #timerWrap.show { display: block; }
   #timerBar { height: 100%; width: 100%; background: linear-gradient(90deg, #58d68d, var(--gold)); transition: width .25s linear; }
   #timerBar.low { background: linear-gradient(90deg, #ff8a4c, var(--red)); }
+  #myHand { text-align: center; font-size: 17px; font-weight: 900; color: var(--gold); min-height: 22px;
+    text-shadow: 0 1px 3px rgba(0,0,0,.5); letter-spacing: .5px; }
   #prompt { text-align: center; font-size: 14px; color: #ffe9a8; min-height: 20px; margin: 4px 0; font-weight: 700; }
   /* 7장이면 한 줄에 4장 → 2줄. 카드 자리(2줄)를 미리 확보해 레이아웃이 안 흔들리게 */
   #myCards { display: flex; gap: 6px; justify-content: center; align-content: center; flex-wrap: wrap;
@@ -317,6 +328,7 @@
     <div id="me">
       <div id="myInfo"></div>
       <div id="timerWrap"><div id="timerBar"></div></div>
+      <div id="myHand"></div>
       <div id="prompt"></div>
       <div id="myCards"></div>
       <div id="actions"></div>
