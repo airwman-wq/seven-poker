@@ -142,10 +142,10 @@ function chipColors(amount: number, cap: number): string[] {
 
 // 베팅하면 그 자리(내 스택/상대 좌석)에서 칩이 중앙으로 날아가 '랜덤하게 흩뿌려져' 잔류한다.
 // 칩 색은 베팅 금액의 액면가와 일치. 흩뿌린 칩들은 베팅 라운드가 끝날 때 gatherChips()로 모은다.
-// 칩이 모이는 특정 구역 = 중앙 판돈 더미(chipPile) 자리
+// 칩이 모이는 특정 구역 = Total/Call 박스 바로 위
 function scatterTarget(): { cx: number; cy: number } {
-  const p = $('chipPile').getBoundingClientRect();
-  if (p.width) return { cx: p.left + p.width / 2, cy: p.top + p.height / 2 };
+  const b = $('potBox').getBoundingClientRect();
+  if (b.width) return { cx: b.left + b.width / 2, cy: b.top - 6 };
   const c = $('center').getBoundingClientRect();
   return { cx: c.left + c.width / 2, cy: c.top + c.height / 2 };
 }
@@ -183,8 +183,7 @@ function flyChips(seatIdx: number, amount: number, mySeat: number): void {
 function gatherChips(): void {
   if (!scatterEls.length) return;
   const pile = $('chipPile');
-  const p = pile.getBoundingClientRect();
-  const tx = p.left + p.width / 2, ty = p.top + p.height / 2;
+  const { cx: tx, cy: ty } = scatterTarget();
   const els = scatterEls;
   scatterEls = [];
   sfx.chip(); // 싸사삭
