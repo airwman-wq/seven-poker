@@ -190,16 +190,17 @@
   /* 칩 기둥(종류별로 쌓임) */
   #chipPile { display: flex; gap: 9px; justify-content: center; align-items: flex-end; min-height: 66px; padding-bottom: 5px; }
   .stack { display: flex; flex-direction: column-reverse; align-items: center; }
-  .stack .chip { margin-top: -11px; } /* 14px 높이에서 약 3px 띠만 보이게 — 촘촘·균일 */
-  .stack .chip:first-child { margin-top: 0; }
+  /* column-reverse에선 margin-bottom으로 겹쳐야 모든 칩(맨 아래-둘째 포함)이 균일하게 겹침 */
+  .stack .chip { margin-bottom: -11px; } /* 14px 높이에서 약 3px 띠만 보이게 — 촘촘·균일 */
+  .stack .chip:first-child { margin-bottom: 0; }
   .chip.pop { animation: chipPop .25s ease both; }
   @keyframes chipPop { from { transform: translateY(-14px) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
   /* 내 보유 칩 스택(작게) */
   #myStack { display: flex; gap: 6px; align-items: flex-end; min-height: 28px; margin-left: auto; padding-bottom: 4px; }
   #myStack .chip { width: 22px; height: 11px; box-shadow: 0 2px 0 var(--rim), 0 3px 2px rgba(0,0,0,.4); }
   #myStack .chip::after { inset: 2px 6px; }
-  #myStack .stack .chip { margin-top: -8px; }
-  #myStack .stack .chip:first-child { margin-top: 0; }
+  #myStack .stack .chip { margin-bottom: -8px; }
+  #myStack .stack .chip:first-child { margin-bottom: 0; }
   /* Total / Call 박스 */
   #potBox {
     background: linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.7));
