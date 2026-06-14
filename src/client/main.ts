@@ -548,6 +548,20 @@ function esc(s: string): string {
   return s.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!));
 }
 
+// 숫자가 0에서 목표까지 촤라라 올라가다 멈추는 카운트업 연출
+function countUp(el: HTMLElement, target: number, prefix = '+', suffix = ' 골드', duration = 1000): void {
+  const t0 = performance.now();
+  el.classList.remove('rolling'); void el.offsetWidth; el.classList.add('rolling');
+  function tick(now: number): void {
+    const p = Math.min(1, (now - t0) / duration);
+    const eased = 1 - Math.pow(1 - p, 3); // ease-out — 빠르게 올라가다 끝에서 천천히 멈춤
+    el.textContent = `${prefix}${fmt(Math.floor(target * eased))}${suffix}`;
+    if (p < 1) requestAnimationFrame(tick);
+    else { el.textContent = `${prefix}${fmt(target)}${suffix}`; el.classList.remove('rolling'); el.classList.add('landed'); setTimeout(() => el.classList.remove('landed'), 400); }
+  }
+  requestAnimationFrame(tick);
+}
+
 // ── 결과 ────────────────────────────────────────────────────────────────────
 function showResult(v: View): void {
   const r = v.result!;
@@ -563,7 +577,7 @@ function showResult(v: View): void {
       wc.append(el);
     }
   }
-  $('winPay').textContent = `+${fmt(r.payout)} 골드`;
+  countUp($('winPay'), r.payout); // 0 → 먹은 금액 촤라라
   $('winSub').textContent = `${won ? '🏆 내 승리' : v.seats[r.winner].name + ' 승리'}` + (r.bySurrender ? ' · 전원 다이' : '');
   const rows = $('resultRows');
   rows.innerHTML = '';

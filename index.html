@@ -272,7 +272,12 @@
     text-shadow: 0 0 22px rgba(245,197,66,.5); line-height: 1.1;
   }
   #winCards { display: flex; gap: 5px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
-  #winPay { font-size: 24px; font-weight: 900; color: #7fffa6; text-shadow: 0 2px 8px rgba(0,0,0,.5); }
+  #winPay { font-size: 46px; font-weight: 900; color: #7fffa6; line-height: 1.1;
+    text-shadow: 0 0 16px rgba(127,255,166,.6), 0 3px 10px rgba(0,0,0,.6);
+    font-variant-numeric: tabular-nums; transition: transform .12s; }
+  #winPay.rolling { transform: scale(1.04); }
+  #winPay.landed { animation: payLand .4s cubic-bezier(.2,1.4,.4,1) both; }
+  @keyframes payLand { 0% { transform: scale(1.35); } 60% { transform: scale(.94); } 100% { transform: scale(1); } }
   #winSub { font-size: 13px; color: #cfe8da; margin-top: 4px; }
   #resultBox {
     background: linear-gradient(#173d29, #0e2b1c); border: 2px solid var(--gold); border-radius: 16px;
