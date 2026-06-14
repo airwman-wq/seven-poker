@@ -307,16 +307,19 @@ function discardFly(rect: DOMRect, card: Card, openId: number): void {
   const ghost = cardEl(card); // 실제 버린 카드(날아가며 회전)
   ghost.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;z-index:40;margin:0;`;
   document.body.append(ghost);
-  const tx = window.innerWidth / 2 - (rect.left + rect.width / 2); // 위 가운데(딜러)로
-  const ty = -(rect.top + rect.height + 20);
+  // 카드 위치 기준 가까운 쪽 옆(왼/오른)으로 날아가 사라짐
+  const cardCx = rect.left + rect.width / 2;
+  const goLeft = cardCx < window.innerWidth / 2;
+  const tx = goLeft ? -(cardCx + rect.width) : (window.innerWidth - cardCx + rect.width);
+  const rot = goLeft ? -150 : 150;
   sfx.card();
   const anim = ghost.animate(
     [
       { transform: 'translate(0,0) rotate(0) scale(1)', opacity: 1 },
-      { transform: 'translate(0,-22px) rotate(-6deg) scale(1.05)', opacity: 1, offset: 0.18 },
-      { transform: `translate(${tx}px, ${ty}px) rotate(-200deg) scale(.35)`, opacity: 0 },
+      { transform: 'translate(0,-16px) scale(1.05)', opacity: 1, offset: 0.16 },
+      { transform: `translate(${tx}px, -8px) rotate(${rot}deg) scale(.5)`, opacity: 0 },
     ],
-    { duration: 520, easing: 'cubic-bezier(.45,0,.75,1)', fill: 'forwards' },
+    { duration: 500, easing: 'cubic-bezier(.4,0,.7,1)', fill: 'forwards' },
   );
   anim.onfinish = () => ghost.remove();
   // 공개 카드 팝(렌더된 뒤 잠깐 강조)
