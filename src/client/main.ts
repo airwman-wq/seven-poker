@@ -151,7 +151,7 @@ function scatterTarget(): { cx: number; cy: number } {
   const c = $('center').getBoundingClientRect();
   return { cx: c.left + c.width / 2, cy: c.top + c.height / 2 };
 }
-function flyChips(seatIdx: number, amount: number, mySeat: number): void {
+function flyChips(seatIdx: number, amount: number, mySeat: number, spread = 18): void {
   const fromEl = seatIdx === mySeat ? $('myStack') : document.querySelector(`.seat[data-seat="${seatIdx}"]`);
   if (!fromEl) return;
   const f = (fromEl as HTMLElement).getBoundingClientRect();
@@ -165,9 +165,9 @@ function flyChips(seatIdx: number, amount: number, mySeat: number): void {
     chip.style.left = `${sx}px`;
     chip.style.top = `${sy}px`;
     document.body.append(chip);
-    // potBox 위 한 구역으로 모이게(살짝만 흩뿌림)
-    const rx = cx + (Math.random() * 2 - 1) * 18;
-    const ry = cy + (Math.random() * 2 - 1) * 9;
+    // potBox 위 한 구역으로 모이게(spread 작을수록 딱 모임)
+    const rx = cx + (Math.random() * 2 - 1) * spread;
+    const ry = cy + (Math.random() * 2 - 1) * Math.max(4, spread / 2);
     const anim = chip.animate(
       [
         { transform: 'translate(-50%,-50%) scale(.45)', opacity: 0.2 },
@@ -429,7 +429,8 @@ function render(v: View): void {
   if (pendingAnte) {
     pendingAnte = false;
     const ms = v.mySeat, amt = v.baseBet, n = v.seats.length;
-    for (let i = 0; i < n; i++) setTimeout(() => flyChips(i, amt, ms), 140 + i * 110);
+    // 앤티는 흩뿌리지 말고 potBox 위에 딱 모이게(spread 작게)
+    for (let i = 0; i < n; i++) setTimeout(() => flyChips(i, amt, ms, 5), 140 + i * 110);
   }
 
   // 오토 진행 예약
