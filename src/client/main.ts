@@ -251,43 +251,48 @@ function runTransitions(v: View): void {
   trk.street = v.street;
 }
 
-// 카드가 화면 최상단 가운데(딜러 덱)에서 각 카드의 정확한 최종 좌표로 날아오는 분배 연출.
-// 내 패(큰 카드)는 뒷면으로 날아와 자리에서 뒤집히고(플립), 상대 패(작은 카드)는 단순 비행.
+// 카드 분배 연출(2단계):
+//  1) 모든 카드가 화면 위 가운데(딜러)에서 '뒷면'으로 차례차례 날아와 안착(상대 먼저, 내 카드 다음)
+//  2) 딜이 끝나면 내 카드만 왼쪽부터 한 장씩 좌우로 뒤집어(scaleX) 앞면 공개
+let dealAnimUntil = 0; // 이 시각까지는 솔로 AI가 기다림(연출 안 끊기게)
 function animateDeal(): void {
-  const cx = window.innerWidth / 2; // 화면 가로 중앙
-  const cy = 6;                     // 화면 최상단
-  const cards = Array.from(document.querySelectorAll('.card.dealt')) as HTMLElement[];
-  cards.forEach((el, i) => {
-    el.classList.remove('dealt');
-    const r = el.getBoundingClientRect(); // 최종 위치(정확 좌표)
-    const dx = cx - (r.left + r.width / 2);
-    const dy = cy - (r.top + r.height / 2);
-    const delay = i * 80;
-    const mine = !el.classList.contains('sm'); // 내 큰 카드만 플립
-    if (mine) {
-      el.classList.add('dealback'); // 날아오는 동안 뒷면
-      el.style.transformStyle = 'preserve-3d';
+  const cx = window.innerWidth / 2, cy = 4; // 화면 최상단 가운데(딜러)
+  const all = Array.from(document.querySelectorAll('.card.dealt')) as HTMLElement[];
+  all.forEach((el) => el.classList.remove('dealt'));
+  const mine = all.filter((el) => !el.classList.contains('sm'));
+  const opp = all.filter((el) => el.classList.contains('sm'));
+  const DUR = 300;
+  const flyFrom = (el: HTMLElement, delay: number): void => {
+    const r = el.getBoundingClientRect();
+    const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+    el.animate(
+      [
+        { transform: `translate(${dx}px,${dy}px) scale(.3) rotate(-7deg)`, opacity: 0 },
+        { opacity: 1, offset: 0.3 },
+        { transform: 'none', opacity: 1 },
+      ],
+      { duration: DUR, delay, easing: 'cubic-bezier(.2,.7,.3,1.04)', fill: 'backwards' },
+    );
+  };
+  // 1) 상대 카드 빠르게 딜
+  opp.forEach((el, i) => flyFrom(el, i * 16));
+  // 2) 내 카드 딜 — 뒷면으로
+  const mineStart = opp.length * 16 + 60;
+  mine.forEach((el, i) => { el.classList.add('dealback'); flyFrom(el, mineStart + i * 55); });
+  // 3) 내 카드 한 장씩 뒤집어 앞면
+  const revealStart = mineStart + Math.max(0, mine.length - 1) * 55 + DUR + 130;
+  mine.forEach((el, i) => {
+    setTimeout(() => {
+      if (!el.isConnected) return; // 재렌더로 교체됐으면 skip
       el.animate(
-        [
-          { transform: `translate(${dx}px, ${dy}px) scale(.3) rotateY(180deg)`, opacity: 0 },
-          { opacity: 1, offset: 0.2 },
-          { transform: 'translate(0,0) scale(1) rotateY(0deg)', opacity: 1 },
-        ],
-        { duration: 560, delay, easing: 'cubic-bezier(.2,.7,.3,1.05)', fill: 'backwards' },
+        [{ transform: 'scaleX(1)' }, { transform: 'scaleX(.05)', offset: 0.5 }, { transform: 'scaleX(1)' }],
+        { duration: 300, easing: 'ease-in-out' },
       );
-      // 자리에 닿아 절반쯤 돌았을 때(edge-on) 앞면으로 전환 + 카드 소리
-      setTimeout(() => { el.classList.remove('dealback'); sfx.card(); }, delay + 330);
-    } else {
-      el.animate(
-        [
-          { transform: `translate(${dx}px, ${dy}px) scale(.28) rotate(-12deg)`, opacity: 0 },
-          { opacity: 1, offset: 0.25 },
-          { transform: 'none', opacity: 1 },
-        ],
-        { duration: 340, delay, easing: 'cubic-bezier(.2,.7,.3,1.05)', fill: 'backwards' },
-      );
-    }
+      setTimeout(() => { el.classList.remove('dealback'); sfx.card(); }, 150); // edge-on에서 앞면
+    }, revealStart + i * 150);
   });
+  const total = revealStart + Math.max(0, mine.length - 1) * 150 + 320;
+  dealAnimUntil = performance.now() + total;
 }
 
 // ── 오토(자동 진행) ──────────────────────────────────────────────────────────
@@ -738,6 +743,8 @@ function soloStep(): void {
     ? [1, 2, 3].some((s) => !g.players[s].chosen)
     : g.current !== 0;
   if (!aiPending) return;
+  // 카드 분배 연출이 진행 중이면 끝날 때까지 기다렸다 진행
+  const wait = Math.max(700, dealAnimUntil - performance.now());
   soloTimer = setTimeout(() => {
     if (!solo) return;
     const g2 = solo.game;
@@ -752,7 +759,7 @@ function soloStep(): void {
     } catch (e) { console.error('솔로 AI 진행 오류:', e); return; }
     renderSolo();
     soloStep();
-  }, 700);
+  }, wait);
 }
 
 // ── 멀티 모드 ────────────────────────────────────────────────────────────────
