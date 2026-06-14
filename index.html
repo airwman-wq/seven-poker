@@ -167,7 +167,11 @@
   .card.best { outline: 3px solid var(--gold); outline-offset: 1px; box-shadow: 0 0 12px rgba(245,197,66,.7); }
   /* 분배 중 뒷면(날아오는 동안) — 절반 돌면 앞면으로 교체 */
   .card.dealback {
-    background: repeating-linear-gradient(45deg, #4a5fa5 0 7px, #3c4f8c 7px 14px), linear-gradient(#4a5fa5, #34457a);
+    /* 좌우대칭 크로스해치 — rotateY(180) 거울상에도 무늬가 안 튐 */
+    background:
+      repeating-linear-gradient(45deg, rgba(0,0,0,.16) 0 6px, transparent 6px 12px),
+      repeating-linear-gradient(-45deg, rgba(0,0,0,.16) 0 6px, transparent 6px 12px),
+      linear-gradient(#4a5fa5, #34457a);
     border: 2px solid #fff; color: transparent;
   }
   .card.dealback .r, .card.dealback .s { visibility: hidden; }

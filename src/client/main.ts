@@ -77,7 +77,8 @@ function backEl(small = false): HTMLElement {
 
 // ── 사운드/연출 전환 추적(재렌더 시 중복 발동 방지) ──────────────────────────
 const trk = { calloutKey: '', myTurn: false, phase: '', street: 0 };
-let justDealt = false;            // 이번 렌더에서 카드 펼침 애니메이션을 줄지
+let justDealt = false;            // 새 판 첫 렌더(상대 뒷장 포함 전부 분배 연출)
+let shownIds = new Set<number>(); // 이미 등장(연출 완료)한 카드 id — 새로 받은 카드만 다시 연출
 let pendingFly: { seat: number; amount: number } | null = null; // 칩 날리기 예약(좌석+금액)
 let seatActs: Record<number, string> = {}; // 좌석별 이번 라운드 마지막 액션(체크/콜/따당…) 표시용
 let scatterEls: HTMLElement[] = []; // 중앙에 흩뿌려진(아직 안 모은) 베팅 칩들
@@ -217,7 +218,7 @@ function runTransitions(v: View): void {
   // 게임 첫 진입 시 시작 멘트
   if (!trk.phase) setTimeout(() => voice('start'), 200);
   // 카드 분배(초이스 진입) / 새 오픈 카드(스트리트 증가) — 라운드 끝나면 흩뿌린 칩 모으고, 좌석 액션 표시 초기화
-  if (v.phase === 'choose' && trk.phase !== 'choose') { gatherChips(); sfx.deal(); justDealt = true; seatActs = {}; pendingAnte = true; }
+  if (v.phase === 'choose' && trk.phase !== 'choose') { gatherChips(); sfx.deal(); justDealt = true; shownIds = new Set(); seatActs = {}; pendingAnte = true; }
   if (v.phase === 'betting' && v.street > trk.street && trk.phase) { gatherChips(); sfx.card(); seatActs = {}; }
 
   // 액션 콜아웃 + 효과음 + 성우 (+ 베팅이면 칩 날리기 예약)
@@ -252,16 +253,18 @@ function runTransitions(v: View): void {
 }
 
 // 카드 분배 연출(2단계):
-//  1) 모든 카드가 화면 위 가운데(딜러)에서 '뒷면'으로 차례차례 날아와 안착(상대 먼저, 내 카드 다음)
-//  2) 딜이 끝나면 내 카드만 왼쪽부터 한 장씩 좌우로 뒤집어(scaleX) 앞면 공개
+//  1) 모든 카드가 화면 위 가운데(딜러)에서 '뒷면'으로 날아와 안착
+//  2) 안착하면 앞면 있는 카드(내 카드 + 상대 공개 카드)를 한 장씩 제자리에서 뒤집어 공개(상대 히든은 그대로)
+// render()에서 '동기' 호출 — getBoundingClientRect로 레이아웃을 잰 직후라 좌표가 정확하고,
+// dealAnimUntil이 soloStep보다 먼저 잡혀 연출이 안 끊긴다.
 let dealAnimUntil = 0; // 이 시각까지는 솔로 AI가 기다림(연출 안 끊기게)
 function animateDeal(): void {
   const cx = window.innerWidth / 2, cy = 4; // 화면 최상단 가운데(딜러)
   const all = Array.from(document.querySelectorAll('.card.dealt')) as HTMLElement[];
   all.forEach((el) => el.classList.remove('dealt'));
-  const mine = all.filter((el) => !el.classList.contains('sm'));
-  const opp = all.filter((el) => el.classList.contains('sm'));
-  const DUR = 300;
+  const faces = all.filter((el) => !el.classList.contains('back')); // 앞면 있는 카드 → 뒷면으로 와서 뒤집기
+  const backs = all.filter((el) => el.classList.contains('back'));   // 상대 히든 → 그냥 안착
+  const FLY = 300;
   const flyFrom = (el: HTMLElement, delay: number): void => {
     const r = el.getBoundingClientRect();
     const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
@@ -271,27 +274,31 @@ function animateDeal(): void {
         { opacity: 1, offset: 0.3 },
         { transform: 'none', opacity: 1 },
       ],
-      { duration: DUR, delay, easing: 'cubic-bezier(.2,.7,.3,1.04)', fill: 'backwards' },
+      { duration: FLY, delay, easing: 'cubic-bezier(.2,.7,.3,1.04)', fill: 'backwards' },
     );
   };
-  // 1) 상대 카드 빠르게 딜
-  opp.forEach((el, i) => flyFrom(el, i * 16));
-  // 2) 내 카드 딜 — 뒷면으로
-  const mineStart = opp.length * 16 + 60;
-  mine.forEach((el, i) => { el.classList.add('dealback'); flyFrom(el, mineStart + i * 55); });
-  // 3) 내 카드 한 장씩 뒤집어 앞면
-  const revealStart = mineStart + Math.max(0, mine.length - 1) * 55 + DUR + 130;
-  mine.forEach((el, i) => {
+  // 1) 딜 — 모든 카드 뒷면으로(앞면 카드는 dealback) 위에서 날아와 안착
+  backs.forEach((el, i) => flyFrom(el, i * 14));
+  const faceStart = backs.length * 14 + 50;
+  faces.forEach((el, i) => { el.classList.add('dealback'); flyFrom(el, faceStart + i * 48); });
+  // 2) 리빌 — 앞면 카드 한 장씩 제자리에서 3D 회전(2배 빠르게)으로 공개
+  const FLIP = 190, GAP = 85;
+  const revealStart = faceStart + Math.max(0, faces.length - 1) * 48 + FLY + 100;
+  faces.forEach((el, i) => {
     setTimeout(() => {
       if (!el.isConnected) return; // 재렌더로 교체됐으면 skip
       el.animate(
-        [{ transform: 'scaleX(1)' }, { transform: 'scaleX(.05)', offset: 0.5 }, { transform: 'scaleX(1)' }],
-        { duration: 300, easing: 'ease-in-out' },
+        [
+          { transform: 'perspective(700px) rotateY(180deg) scale(1)' },
+          { transform: 'perspective(700px) rotateY(90deg) scale(1.14)', offset: 0.5 },
+          { transform: 'perspective(700px) rotateY(0deg) scale(1)' },
+        ],
+        { duration: FLIP, easing: 'cubic-bezier(.4,.05,.25,1)' },
       );
-      setTimeout(() => { el.classList.remove('dealback'); sfx.card(); }, 150); // edge-on에서 앞면
-    }, revealStart + i * 150);
+      setTimeout(() => { el.classList.remove('dealback'); sfx.card(); }, FLIP / 2); // edge-on에서 앞면
+    }, revealStart + i * GAP);
   });
-  const total = revealStart + Math.max(0, mine.length - 1) * 150 + 320;
+  const total = revealStart + Math.max(0, faces.length - 1) * GAP + FLIP + 80;
   dealAnimUntil = performance.now() + total;
 }
 
@@ -381,16 +388,18 @@ function render(v: View): void {
     cards.className = 'cards';
     const oppCards: HTMLElement[] = [];
     if (v.phase === 'choose' && !s.chosen) {
-      for (let k = 0; k < 4; k++) oppCards.push(backEl(true));
+      for (let k = 0; k < 4; k++) { const el = backEl(true); if (justDealt) el.classList.add('dealt'); oppCards.push(el); }
     } else {
       // 뒷면(히든)을 먼저 깔고 공개 카드를 위로 — 많이 겹쳐도 앞면이 안 가려지게
-      for (let k = 0; k < s.hiddenCount; k++) oppCards.push(backEl(true));
-      for (const c of s.openCards) oppCards.push(cardEl(c, true));
+      for (let k = 0; k < s.hiddenCount; k++) { const el = backEl(true); if (justDealt) el.classList.add('dealt'); oppCards.push(el); }
+      for (const c of s.openCards) {
+        const el = cardEl(c, true);
+        if (justDealt || !shownIds.has(c.id)) el.classList.add('dealt'); // 새로 받은 공개 카드만 연출
+        shownIds.add(c.id);
+        oppCards.push(el);
+      }
     }
-    oppCards.forEach((el) => {
-      if (justDealt) el.classList.add('dealt');
-      cards.append(el);
-    });
+    oppCards.forEach((el) => cards.append(el));
     d.append(cards);
     opps.append(d);
   });
@@ -431,8 +440,10 @@ function render(v: View): void {
   renderMyCards(v);
   renderActions(v);
 
-  // 카드 분배 연출(중앙 → 각 자리) — 최종 위치를 잰 뒤 실행
-  if (justDealt) { requestAnimationFrame(() => animateDeal()); justDealt = false; }
+  // 카드 분배 연출 — 새로 등장한 카드(.dealt)가 있으면 위에서 날아오게.
+  // 동기 호출: 빌드 직후라 좌표 정확 + dealAnimUntil이 soloStep보다 먼저 잡혀 연출이 안 끊김.
+  if (document.querySelector('.card.dealt')) animateDeal();
+  justDealt = false;
   // 칩 날리기(베팅 직후) — 새 DOM 좌표 기준으로 실행
   if (pendingFly != null) { const pf = pendingFly; pendingFly = null; requestAnimationFrame(() => flyChips(pf.seat, pf.amount, v.mySeat)); }
   // 새 판 시작 — 각 자리에서 기본 칩(앤티) 걷는 연출
@@ -476,7 +487,8 @@ function renderMyCards(v: View): void {
   }
   sorted.forEach((c) => {
     const el = cardEl(c);
-    if (justDealt) el.classList.add('dealt');
+    if (justDealt || !shownIds.has(c.id)) el.classList.add('dealt'); // 새로 받은 카드만 연출
+    shownIds.add(c.id);
     if (!choosing && !v.myOpenIds.includes(c.id)) el.classList.add('hiddenMark');
     if (!choosing && bestIds.has(c.id)) el.classList.add('best');
     if (choosing) {
