@@ -165,16 +165,16 @@ function flyChips(seatIdx: number, amount: number, mySeat: number): void {
     chip.style.left = `${sx}px`;
     chip.style.top = `${sy}px`;
     document.body.append(chip);
-    // 중앙 판돈 구역 안에 살짝만 흩뿌림(특정 구역으로 모이게)
-    const rx = cx + (Math.random() * 2 - 1) * 26;
-    const ry = cy + (Math.random() * 2 - 1) * 13;
+    // potBox 위 한 구역으로 모이게(살짝만 흩뿌림)
+    const rx = cx + (Math.random() * 2 - 1) * 18;
+    const ry = cy + (Math.random() * 2 - 1) * 9;
     const anim = chip.animate(
       [
         { transform: 'translate(-50%,-50%) scale(.45)', opacity: 0.2 },
         { opacity: 1, offset: 0.2 },
         { transform: `translate(calc(${rx - sx}px - 50%), calc(${ry - sy}px - 50%)) scale(1)`, opacity: 1 },
       ],
-      { duration: 430, delay: i * 45, easing: 'cubic-bezier(.3,.6,.4,1)', fill: 'forwards' },
+      { duration: 460, delay: i * 45, easing: 'cubic-bezier(.1,.8,.2,1)', fill: 'forwards' }, // 출발 빠르게, 끝은 스르르
     );
     anim.onfinish = () => { chip.style.transform = 'translate(-50%,-50%)'; chip.style.left = `${rx}px`; chip.style.top = `${ry}px`; };
     scatterEls.push(chip);
@@ -197,7 +197,7 @@ function gatherChips(): void {
         { transform: 'translate(-50%,-50%)' },
         { transform: `translate(calc(${dx}px - 50%), calc(${dy}px - 50%))` },
       ],
-      { duration: 280, delay: i * 22, easing: 'cubic-bezier(.5,0,.7,1)', fill: 'forwards' },
+      { duration: 320, delay: i * 22, easing: 'cubic-bezier(.12,.82,.24,1)', fill: 'forwards' }, // 출발 빠르게, 끝은 스르르
     );
     a.onfinish = () => el.remove();
   });
@@ -548,18 +548,79 @@ function esc(s: string): string {
   return s.replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]!));
 }
 
-// 숫자가 0에서 목표까지 촤라라 올라가다 멈추는 카운트업 연출
-function countUp(el: HTMLElement, target: number, prefix = '+', suffix = ' 골드', duration = 1000): void {
-  const t0 = performance.now();
-  el.classList.remove('rolling'); void el.offsetWidth; el.classList.add('rolling');
-  function tick(now: number): void {
-    const p = Math.min(1, (now - t0) / duration);
-    const eased = 1 - Math.pow(1 - p, 3); // ease-out — 빠르게 올라가다 끝에서 천천히 멈춤
-    el.textContent = `${prefix}${fmt(Math.floor(target * eased))}${suffix}`;
-    if (p < 1) requestAnimationFrame(tick);
-    else { el.textContent = `${prefix}${fmt(target)}${suffix}`; el.classList.remove('rolling'); el.classList.add('landed'); setTimeout(() => el.classList.remove('landed'), 400); }
+// 공항 현황판(스플릿 플랩)처럼 자릿수마다 숫자가 굴러 올라가 멈추는 연출.
+// 각 자리에 0~9 세로 띠를 두고 두 바퀴 돌려 최종 숫자에 착지(자리마다 시차).
+function flipNumber(el: HTMLElement, target: number): void {
+  const num = fmt(target); // 콤마 포함 문자열
+  const digits: string[] = [];
+  let html = '<span class="pre">+</span>';
+  for (const ch of num) {
+    if (ch === ',') { html += '<span class="comma">,</span>'; continue; }
+    const strip = [...'0123456789'.repeat(3)].map((d) => `<span>${d}</span>`).join(''); // 0..29
+    html += `<span class="dcell"><span class="dstrip">${strip}</span></span>`;
+    digits.push(ch);
   }
-  requestAnimationFrame(tick);
+  html += '<span class="suf"> 골드</span>';
+  el.innerHTML = html;
+  const strips = Array.from(el.querySelectorAll('.dstrip')) as HTMLElement[];
+  strips.forEach((s) => { s.style.transform = 'translateY(0)'; });
+  // 다음 프레임에 목표로 굴림(CSS transition으로 촤라라)
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    strips.forEach((s, i) => {
+      const d = parseInt(digits[i], 10);
+      s.style.transitionDelay = `${i * 70}ms`;
+      s.style.transform = `translateY(-${20 + d}em)`; // 두 바퀴(20) + 최종 숫자
+    });
+  }));
+  const totalMs = strips.length * 70 + 1150;
+  setTimeout(() => { el.classList.remove('landed'); void el.offsetWidth; el.classList.add('landed'); }, totalMs);
+}
+
+// 폭죽·컨페티 축하 연출 — 높은 족보(플러시 이상)나 큰 금액 승리 때.
+const CONFETTI_COLORS = ['#f5c542', '#ff6b6b', '#6fb1ff', '#5fd58c', '#ffffff', '#b13ad2'];
+function firework(x: number, y: number): void {
+  for (let i = 0; i < 24; i++) {
+    const p = document.createElement('div');
+    p.className = 'spark';
+    p.style.left = `${x}px`; p.style.top = `${y}px`;
+    p.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    document.body.append(p);
+    const ang = (i / 24) * Math.PI * 2, dist = 70 + Math.random() * 80;
+    const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist;
+    const a = p.animate(
+      [
+        { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 },
+        { transform: `translate(calc(${dx}px - 50%), calc(${dy + 40}px - 50%)) scale(.4)`, opacity: 0 },
+      ],
+      { duration: 900 + Math.random() * 400, easing: 'cubic-bezier(.15,.7,.3,1)', fill: 'forwards' },
+    );
+    a.onfinish = () => p.remove();
+  }
+}
+function celebrate(): void {
+  // 위에서 떨어지는 컨페티
+  for (let i = 0; i < 90; i++) {
+    const p = document.createElement('div');
+    p.className = 'confetti';
+    p.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
+    p.style.left = `${5 + Math.random() * 90}vw`;
+    document.body.append(p);
+    const dx = (Math.random() * 2 - 1) * 140, dy = window.innerHeight + 40, rot = (Math.random() * 2 - 1) * 720;
+    const a = p.animate(
+      [
+        { transform: 'translateY(-30px) rotate(0)', opacity: 1 },
+        { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg)`, opacity: 1, offset: 0.9 },
+        { transform: `translate(${dx}px, ${dy + 40}px) rotate(${rot}deg)`, opacity: 0 },
+      ],
+      { duration: 2000 + Math.random() * 1400, delay: Math.random() * 500, easing: 'cubic-bezier(.2,.6,.4,1)', fill: 'forwards' },
+    );
+    a.onfinish = () => p.remove();
+  }
+  // 불꽃 몇 발(시차)
+  const W = window.innerWidth, H = window.innerHeight;
+  [[0.25, 0.3], [0.7, 0.25], [0.5, 0.45], [0.85, 0.5]].forEach(([fx, fy], i) =>
+    setTimeout(() => { firework(W * fx, H * fy); sfx.chip(); }, 200 + i * 320));
+  sfx.win();
 }
 
 // ── 결과 ────────────────────────────────────────────────────────────────────
@@ -577,7 +638,12 @@ function showResult(v: View): void {
       wc.append(el);
     }
   }
-  countUp($('winPay'), r.payout); // 0 → 먹은 금액 촤라라
+  flipNumber($('winPay'), r.payout); // 0 → 먹은 금액, 현황판식 자릿수 롤링
+  // 내가 높은 족보(플러시 이상)나 큰 금액으로 이기면 폭죽 축하
+  if (won) {
+    const cat = winHand ? evalBest(winHand.cards).cat : 0;
+    if (cat >= CAT.FLUSH || r.payout >= v.baseBet * 30) celebrate();
+  }
   $('winSub').textContent = `${won ? '🏆 내 승리' : v.seats[r.winner].name + ' 승리'}` + (r.bySurrender ? ' · 전원 다이' : '');
   const rows = $('resultRows');
   rows.innerHTML = '';

@@ -272,12 +272,19 @@
     text-shadow: 0 0 22px rgba(245,197,66,.5); line-height: 1.1;
   }
   #winCards { display: flex; gap: 5px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
-  #winPay { font-size: 46px; font-weight: 900; color: #7fffa6; line-height: 1.1;
-    text-shadow: 0 0 16px rgba(127,255,166,.6), 0 3px 10px rgba(0,0,0,.6);
-    font-variant-numeric: tabular-nums; transition: transform .12s; }
-  #winPay.rolling { transform: scale(1.04); }
-  #winPay.landed { animation: payLand .4s cubic-bezier(.2,1.4,.4,1) both; }
-  @keyframes payLand { 0% { transform: scale(1.35); } 60% { transform: scale(.94); } 100% { transform: scale(1); } }
+  #winPay { font-size: 60px; font-weight: 900; color: #7fffa6; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    text-shadow: 0 0 18px rgba(127,255,166,.6), 0 3px 10px rgba(0,0,0,.6);
+    font-variant-numeric: tabular-nums; }
+  /* 공항 현황판식 자릿수 롤링 */
+  #winPay .pre, #winPay .suf, #winPay .comma { line-height: 1; }
+  #winPay .suf { font-size: 0.55em; margin-left: .12em; }
+  #winPay .dcell { display: inline-block; height: 1em; overflow: hidden; vertical-align: top; }
+  #winPay .dstrip { display: flex; flex-direction: column; transform: translateY(0);
+    transition: transform 1.15s cubic-bezier(.16,.84,.24,1); will-change: transform; }
+  #winPay .dstrip > span { height: 1em; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  #winPay.landed { animation: payLand .42s cubic-bezier(.2,1.5,.4,1) both; }
+  @keyframes payLand { 0% { transform: scale(1.18); } 60% { transform: scale(.96); } 100% { transform: scale(1); } }
   #winSub { font-size: 13px; color: #cfe8da; margin-top: 4px; }
   #resultBox {
     background: linear-gradient(#173d29, #0e2b1c); border: 2px solid var(--gold); border-radius: 16px;
@@ -327,6 +334,10 @@
     display: block; margin: 10px auto 0; padding: 8px 18px; border: none; border-radius: 10px;
     background: var(--gold); color: #2a1a05; font-weight: 800; font-size: 14px;
   }
+
+  /* 축하 폭죽·컨페티 */
+  .confetti { position: fixed; top: -20px; width: 9px; height: 15px; border-radius: 2px; z-index: 45; pointer-events: none; }
+  .spark { position: fixed; width: 9px; height: 9px; border-radius: 50%; z-index: 45; pointer-events: none; box-shadow: 0 0 8px currentColor; }
 
   #toast {
     position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
