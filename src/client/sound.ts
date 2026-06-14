@@ -41,6 +41,8 @@ function ac(): AudioContext | null {
 const B = import.meta.env.BASE_URL;
 const SFX_URL: Record<string, string> = {
   deal: `${B}audio/sfx/deal.mp3`,
+  card: `${B}audio/sfx/card.mp3`, // 카드 한 장 넘김(딜·리빌)
+  toss: `${B}audio/sfx/toss.mp3`, // 카드 버리기
   chip: `${B}audio/sfx/chip.mp3`,
   win: `${B}audio/sfx/win.mp3`,
   turn: `${B}audio/sfx/turn.mp3`,
@@ -185,6 +187,7 @@ export const sfx = {
   select: () => play('select'),
   win: () => play('win'),
   lose: () => play('lose'),
+  toss: () => { if (!playBuffer(SFX_URL.toss)) synth.card(); }, // 카드 버리기(에셋, 없으면 합성)
   jackpot: () => { /* win 에셋이 환호까지 포함 — 별도 합성음 생략 */ },
 };
 
@@ -192,3 +195,6 @@ export const sfx = {
 export function voice(name: keyof typeof VOICE_URL): void {
   playBuffer(VOICE_URL[name], 1);
 }
+
+// 페이지 로드 때 미리 받아 디코드(첫 판부터 ElevenLabs 음원이 나오게). 재생은 첫 탭 후부터.
+if (enabled) preload();

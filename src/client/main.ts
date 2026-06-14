@@ -312,7 +312,7 @@ function discardFly(rect: DOMRect, card: Card, openId: number): void {
   const goLeft = cardCx < window.innerWidth / 2;
   const tx = goLeft ? -(cardCx + rect.width) : (window.innerWidth - cardCx + rect.width);
   const rot = goLeft ? -150 : 150;
-  sfx.card();
+  sfx.toss();
   const anim = ghost.animate(
     [
       { transform: 'translate(0,0) rotate(0) scale(1)', opacity: 1 },
