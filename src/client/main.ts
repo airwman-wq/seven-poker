@@ -302,6 +302,33 @@ function animateDeal(): void {
   dealAnimUntil = performance.now() + total;
 }
 
+// 버리는 연출 — 버릴 카드가 위(딜러 쪽)로 회전·축소·페이드되며 날아가 사라지고, 공개 카드는 팝.
+function discardFly(rect: DOMRect, card: Card, openId: number): void {
+  const ghost = cardEl(card); // 실제 버린 카드(날아가며 회전)
+  ghost.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;z-index:40;margin:0;`;
+  document.body.append(ghost);
+  const tx = window.innerWidth / 2 - (rect.left + rect.width / 2); // 위 가운데(딜러)로
+  const ty = -(rect.top + rect.height + 20);
+  sfx.card();
+  const anim = ghost.animate(
+    [
+      { transform: 'translate(0,0) rotate(0) scale(1)', opacity: 1 },
+      { transform: 'translate(0,-22px) rotate(-6deg) scale(1.05)', opacity: 1, offset: 0.18 },
+      { transform: `translate(${tx}px, ${ty}px) rotate(-200deg) scale(.35)`, opacity: 0 },
+    ],
+    { duration: 520, easing: 'cubic-bezier(.45,0,.75,1)', fill: 'forwards' },
+  );
+  anim.onfinish = () => ghost.remove();
+  // 공개 카드 팝(렌더된 뒤 잠깐 강조)
+  setTimeout(() => {
+    const op = document.querySelector(`#myCards .card[data-id="${openId}"]`) as HTMLElement | null;
+    if (op) op.animate(
+      [{ transform: 'scale(1)' }, { transform: 'scale(1.18)', offset: 0.5 }, { transform: 'scale(1)' }],
+      { duration: 320, easing: 'cubic-bezier(.3,1.4,.5,1)' },
+    );
+  }, 120);
+}
+
 // ── 오토(자동 진행) ──────────────────────────────────────────────────────────
 let auto = false;
 let autoTimer: ReturnType<typeof setTimeout> | null = null;
@@ -487,6 +514,7 @@ function renderMyCards(v: View): void {
   }
   sorted.forEach((c) => {
     const el = cardEl(c);
+    el.dataset.id = String(c.id); // 버리기/공개 연출 대상 지정용
     if (justDealt || !shownIds.has(c.id)) el.classList.add('dealt'); // 새로 받은 카드만 연출
     shownIds.add(c.id);
     if (!choosing && !v.myOpenIds.includes(c.id)) el.classList.add('hiddenMark');
@@ -704,12 +732,19 @@ function showResult(v: View): void {
 
 // ── 입력 전송 (솔로/멀티 분기) ───────────────────────────────────────────────
 function sendChoose(discardId: number, openId: number): void {
+  // 버리는 연출용: 상태가 바뀌기 전에 버릴 카드 위치·카드 캡처
+  const dEl = (document.querySelector('#myCards .card.selDiscard')
+    ?? document.querySelector(`#myCards .card[data-id="${discardId}"]`)) as HTMLElement | null; // 오토는 selDiscard 없음 → id로
+  const dRect = dEl?.getBoundingClientRect();
+  const dCard = lastView?.myCards.find((c) => c.id === discardId) ?? null;
   if (mode === 'solo' && solo) {
     try { solo.game.choose(0, discardId, openId); } catch (e) { toast((e as Error).message); return; }
     renderSolo();
+    if (dRect && dCard) discardFly(dRect, dCard, openId);
     soloStep();
   } else if (mode === 'multi' && net) {
     net.send('choose', { discardId, openId });
+    if (dRect && dCard) discardFly(dRect, dCard, openId); // 공개 카드 팝은 서버 응답 후라 못 잡을 수 있음(무시됨)
   }
 }
 
