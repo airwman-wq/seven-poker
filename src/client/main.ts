@@ -26,11 +26,13 @@ let pick: { discardId: number | null; openId: number | null } = { discardId: nul
 let pickKey = ''; // 내 손패가 바뀌면 선택 초기화
 
 // ── 화면 전환 ────────────────────────────────────────────────────────────────
+let curScreen = '';
 function show(id: 'lobby' | 'waiting' | 'game'): void {
   for (const s of ['lobby', 'waiting', 'game']) $(s).classList.toggle('show', s === id);
   if (id !== 'game') $('overlay').classList.remove('show');
   $('autoToggle').style.display = id === 'game' ? 'block' : 'none';
-  if (id === 'game') bgm.start(); else bgm.stop();
+  // 배경음악은 화면이 실제로 바뀔 때만 제어(매 렌더마다 play() 호출 방지)
+  if (id !== curScreen) { if (id === 'game') bgm.start(); else bgm.stop(); curScreen = id; }
 }
 
 let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -233,8 +235,9 @@ function runTransitions(v: View): void {
   if (myTurn && !trk.myTurn) { sfx.turn(); setTimeout(() => voice('yourturn'), 200); }
   trk.myTurn = myTurn;
 
-  // 종료(승/패)
+  // 종료(승/패) — 흩뿌린 칩 모으고 결과음
   if (v.phase === 'ended' && trk.phase !== 'ended' && v.result) {
+    gatherChips();
     if (v.result.winner === v.mySeat) { sfx.win(); setTimeout(() => voice('win'), 350); }
     else { sfx.lose(); setTimeout(() => voice('lose'), 250); }
   }
@@ -290,7 +293,7 @@ let autoTimer: ReturnType<typeof setTimeout> | null = null;
 function autoBetMulti(v: View): BetAction {
   const pick = (...prefs: BetAction[]): BetAction =>
     prefs.find((a) => v.actions.includes(a)) ?? (v.actions.includes('die') ? 'die' : v.actions[0]);
-  const cat = evalBest(v.myCards).cat;
+  const cat = (v.myCards.length >= 5 ? evalBest(v.myCards) : evalOpen(v.myCards)).cat; // 5장 미만이면 evalOpen
   const toCall = v.toCall;
   const unit = v.amounts.bbing;
   if (cat >= CAT.STRAIGHT) return pick('half', 'ddadang', 'bbing', 'call', 'check'); // 강 — 키우기
