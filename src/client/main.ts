@@ -12,6 +12,9 @@ import { sfx, voice, bgm, unlock, setSoundEnabled, isSoundEnabled,
 type View = GameView & { turnRemainMs?: number | null };
 type Mode = 'lobby' | 'solo' | 'multi';
 
+// 데모 빌드 여부 — define 미치환(개발 서버 stale 등)이어도 ReferenceError 안 나게 안전 접근
+const DEMO = typeof __DEMO__ !== 'undefined' ? __DEMO__ : false;
+
 const $ = (id: string) => document.getElementById(id)!;
 const fmt = (n: number) => n.toLocaleString('ko-KR');
 const STREET_NAMES = ['', '1차 베팅', '2차 베팅', '3차 베팅', '4차 베팅', '마지막 베팅'];
@@ -144,8 +147,10 @@ function chipColors(amount: number, cap: number): string[] {
 
 // 베팅하면 그 자리(내 스택/상대 좌석)에서 칩이 중앙으로 날아가 '랜덤하게 흩뿌려져' 잔류한다.
 // 칩 색은 베팅 금액의 액면가와 일치. 흩뿌린 칩들은 베팅 라운드가 끝날 때 gatherChips()로 모은다.
-// 칩이 모이는 특정 구역 = Total/Call 박스 바로 위
+// 칩이 모이는 한 곳 = Total/Call 박스 바로 위 더미(#chipPile). 흩뿌린 칩·앤티·베팅이 모두 여기로.
 function scatterTarget(): { cx: number; cy: number } {
+  const pile = $('chipPile').getBoundingClientRect();
+  if (pile.width) return { cx: pile.left + pile.width / 2, cy: pile.top + pile.height / 2 };
   const b = $('potBox').getBoundingClientRect();
   if (b.width) return { cx: b.left + b.width / 2, cy: b.top - 6 };
   const c = $('center').getBoundingClientRect();
@@ -786,10 +791,10 @@ document.addEventListener('click', (e) => {
 $('btnSolo').onclick = () => { unlock(); solo = null; startSolo(); };
 $('btnMulti').onclick = () => {
   unlock();
-  if (__DEMO__) { toast('데모에서는 혼자 연습만 가능합니다 (온라인 대전은 서버 필요)'); return; }
+  if (DEMO) { toast('데모에서는 혼자 연습만 가능합니다 (온라인 대전은 서버 필요)'); return; }
   void startMulti();
 };
-if (__DEMO__) {
+if (DEMO) {
   const mb = $('btnMulti') as HTMLButtonElement;
   mb.textContent = '온라인 대전 (데모 불가)';
   mb.style.opacity = '0.5';

@@ -27,7 +27,7 @@ function endpoint(): string {
 
 // 현재 접속 인원 — 서버 /online 폴링. 실패 시 null.
 export async function fetchOnlineCount(): Promise<number | null> {
-  if (__DEMO__) return null; // 데모: 서버 없음 — 폴링 안 함
+  if (typeof __DEMO__ !== 'undefined' && __DEMO__) return null; // 데모: 서버 없음 — 폴링 안 함
   try {
     const base = endpoint().replace(/^ws/, 'http');
     const r = await fetch(base + '/online', { cache: 'no-store' });
