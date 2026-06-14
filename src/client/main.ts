@@ -504,8 +504,15 @@ function renderTimer(v: View): void {
   bar.classList.toggle('low', v.turnRemainMs < 6000);
 }
 
+let lastMyCardKey = ''; // 내 손패 구성이 바뀌었는지(바뀔 때만 FLIP 슬라이드)
 function renderMyCards(v: View): void {
   const box = $('myCards');
+  // FLIP 준비 — 손패 구성이 바뀐 경우에만 기존 카드 위치를 기록(선택 토글 재렌더엔 적용 안 함)
+  const key = v.myCards.map((c) => c.id).slice().sort((a, b) => a - b).join(',');
+  const structural = key !== lastMyCardKey;
+  lastMyCardKey = key;
+  const oldRects = new Map<number, DOMRect>();
+  if (structural) box.querySelectorAll('.card[data-id]').forEach((el) => oldRects.set(Number((el as HTMLElement).dataset.id), el.getBoundingClientRect()));
   box.innerHTML = '';
   const choosing = v.phase === 'choose' && !v.seats[v.mySeat].chosen;
   // 숫자 높은 순으로 정렬해서 족보가 한눈에 보이게
@@ -530,6 +537,20 @@ function renderMyCards(v: View): void {
     }
     box.append(el);
   });
+  // FLIP 재생 — 기존 카드(새로 딜되는 카드 제외)를 옛 위치에서 새 위치로 스르르 이동
+  if (structural && oldRects.size) {
+    box.querySelectorAll('.card[data-id]').forEach((el) => {
+      const c = el as HTMLElement;
+      if (c.classList.contains('dealt')) return; // 새 카드는 딜 연출이 담당
+      const old = oldRects.get(Number(c.dataset.id));
+      if (!old) return;
+      const nr = c.getBoundingClientRect();
+      const dx = old.left - nr.left, dy = old.top - nr.top;
+      if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+      c.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }],
+        { duration: 280, easing: 'cubic-bezier(.3,.7,.3,1)' });
+    });
+  }
 }
 
 function onPick(id: number): void {
