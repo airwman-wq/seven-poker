@@ -44,10 +44,16 @@
   html, body { height: 100%; overscroll-behavior: none; }
   body {
     font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
-    background: radial-gradient(ellipse 120% 80% at 50% 28%, var(--felt) 0%, var(--felt-dark) 70%, #06200f 100%);
+    background: #000; /* 레터박스(남는 위아래/좌우 여백) */
     color: #fff; height: 100vh; height: 100dvh; overflow: hidden;
   }
-  .screen { display: none; height: 100vh; height: 100dvh; }
+  /* 고정 9:16 무대 — 뷰포트에 맞춰 통째로 축소(JS fitStage). 어느 기기든 설계 그대로 + 레터박스 */
+  #stage {
+    position: fixed; left: 50%; top: 50%; width: 432px; height: 768px;
+    transform: translate(-50%,-50%); transform-origin: center center; overflow: hidden;
+    background: radial-gradient(ellipse 120% 80% at 50% 28%, var(--felt) 0%, var(--felt-dark) 70%, #06200f 100%);
+  }
+  .screen { display: none; position: absolute; inset: 0; }
   .screen.show { display: flex; flex-direction: column; align-items: center; }
 
   /* ── 로비 ── */
@@ -72,7 +78,7 @@
   #waiting.show { justify-content: center; gap: 16px; padding: 20px; }
 
   /* ── 게임 테이블(세로) ── */
-  #game.show { justify-content: space-between; padding: calc(40px + env(safe-area-inset-top)) 6px calc(10px + env(safe-area-inset-bottom));
+  #game.show { justify-content: space-between; padding: 38px 6px 10px;
     max-width: 520px; margin: 0 auto; width: 100%; }
 
   /* 상대 좌석 — 상단 한 줄(최대 3명) */
@@ -309,13 +315,13 @@
 
   /* 옵션(⚙️) 버튼 하나로 통합 — 우측 상단 코너 */
   #optToggle {
-    position: fixed; top: calc(8px + env(safe-area-inset-top)); right: 10px; z-index: 50;
+    position: fixed; top: 8px; right: 10px; z-index: 50;
     width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); cursor: pointer;
     background: rgba(0,0,0,.5); color: #fff; font-size: 18px;
   }
   /* 옵션 패널(오토·소리·볼륨 전부) — 옵션 버튼 아래 우측 */
   #audioPanel {
-    position: fixed; top: calc(52px + env(safe-area-inset-top)); right: 10px; z-index: 55;
+    position: fixed; top: 52px; right: 10px; z-index: 55;
     display: none; flex-direction: column; gap: 12px; min-width: 210px;
     background: rgba(0,0,0,.9); padding: 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.22);
     box-shadow: 0 6px 18px rgba(0,0,0,.5);
@@ -346,30 +352,10 @@
   }
 
   /* 축하 폭죽·컨페티 */
-  .confetti { position: fixed; top: -20px; width: 9px; height: 15px; border-radius: 2px; z-index: 45; pointer-events: none; }
-  .spark { position: fixed; width: 9px; height: 9px; border-radius: 50%; z-index: 45; pointer-events: none; box-shadow: 0 0 8px currentColor; }
+  .confetti { position: absolute; top: -20px; width: 9px; height: 15px; border-radius: 2px; z-index: 45; pointer-events: none; }
+  .spark { position: absolute; width: 9px; height: 9px; border-radius: 50%; z-index: 45; pointer-events: none; box-shadow: 0 0 8px currentColor; }
 
-  /* 세로 짧은 폰: 카드·내 영역을 줄여 하단(버튼)이 안 잘리게 */
-  @media (max-height: 820px) {
-    #game.show { padding-top: calc(34px + env(safe-area-inset-top)); }
-    .card { width: 64px; height: 90px; }
-    .card .r { font-size: 30px; } .card .s { font-size: 25px; margin-top: 2px; }
-    #me { min-height: 300px; }
-    #myCards { min-height: 190px; max-width: 300px; }
-    .seat .cards { min-height: 84px; }
-  }
-  @media (max-height: 680px) {
-    #game.show { padding-top: calc(26px + env(safe-area-inset-top)); }
-    .card { width: 52px; height: 72px; }
-    .card .r { font-size: 24px; } .card .s { font-size: 20px; }
-    #me { min-height: 230px; }
-    #myCards { min-height: 148px; max-width: 248px; padding-bottom: 14px; }
-    #myHand { font-size: 15px; min-height: 18px; }
-    #actions { min-height: 44px; }
-    .seat .avatar { width: 28px; height: 28px; font-size: 14px; }
-    .seat .cards { min-height: 68px; }
-    #opps { gap: 4px; }
-  }
+  /* (높이 미디어쿼리 제거 — 고정 무대를 통째로 스케일하므로 불필요) */
 
   #toast {
     position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
@@ -379,6 +365,7 @@
 </style>
 </head>
 <body>
+  <div id="stage">
   <button id="optToggle" title="옵션">⚙️</button>
   <div id="audioPanel">
     <button id="autoToggle" title="자동 진행">오토 OFF</button>
@@ -451,6 +438,7 @@
   </div>
 
   <div id="toast"></div>
+  </div><!-- /#stage -->
   <script type="module" src="/src/client/main.ts"></script>
 </body>
 </html>

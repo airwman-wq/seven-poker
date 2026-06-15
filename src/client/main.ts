@@ -20,6 +20,24 @@ const fmt = (n: number) => n.toLocaleString('ko-KR');
 const STREET_NAMES = ['', '1차 베팅', '2차 베팅', '3차 베팅', '4차 베팅', '마지막 베팅'];
 const SOLO_NAMES = ['나', 'AI 민수', 'AI 영자', 'AI 철호'];
 
+// ── 고정 9:16 무대 스케일(레터박스) ───────────────────────────────────────────
+const STAGE_W = 432, STAGE_H = 768;
+const stageEl = $('stage');
+let stageScale = 1;
+function fitStage(): void {
+  stageScale = Math.min(window.innerWidth / STAGE_W, window.innerHeight / STAGE_H);
+  stageEl.style.transform = `translate(-50%,-50%) scale(${stageScale})`;
+}
+// 화면 좌표(getBoundingClientRect) → 무대 로컬 좌표. 무대가 scale되므로 애니메이션은 로컬 px로.
+function localCenter(el: Element): { cx: number; cy: number } {
+  const r = el.getBoundingClientRect(), sr = stageEl.getBoundingClientRect();
+  return { cx: (r.left + r.width / 2 - sr.left) / stageScale, cy: (r.top + r.height / 2 - sr.top) / stageScale };
+}
+function localBox(rect: DOMRect): { left: number; top: number; width: number; height: number } {
+  const sr = stageEl.getBoundingClientRect();
+  return { left: (rect.left - sr.left) / stageScale, top: (rect.top - sr.top) / stageScale, width: rect.width / stageScale, height: rect.height / stageScale };
+}
+
 let mode: Mode = 'lobby';
 let net: NetHandle | null = null;
 let solo: { game: SevenPokerGame; chips: number[] } | null = null;
@@ -149,18 +167,15 @@ function chipColors(amount: number, cap: number): string[] {
 // 칩 색은 베팅 금액의 액면가와 일치. 흩뿌린 칩들은 베팅 라운드가 끝날 때 gatherChips()로 모은다.
 // 칩이 모이는 한 곳 = Total/Call 박스 바로 위 더미(#chipPile). 흩뿌린 칩·앤티·베팅이 모두 여기로.
 function scatterTarget(): { cx: number; cy: number } {
-  const pile = $('chipPile').getBoundingClientRect();
-  if (pile.width) return { cx: pile.left + pile.width / 2, cy: pile.top + pile.height / 2 };
-  const b = $('potBox').getBoundingClientRect();
-  if (b.width) return { cx: b.left + b.width / 2, cy: b.top - 6 };
-  const c = $('center').getBoundingClientRect();
-  return { cx: c.left + c.width / 2, cy: c.top + c.height / 2 };
+  if ($('chipPile').getBoundingClientRect().width) return localCenter($('chipPile'));
+  if ($('potBox').getBoundingClientRect().width) { const c = localCenter($('potBox')); return { cx: c.cx, cy: c.cy - 6 }; }
+  return localCenter($('center'));
 }
 function flyChips(seatIdx: number, amount: number, mySeat: number, spread = 18): void {
   const fromEl = seatIdx === mySeat ? $('myStack') : document.querySelector(`.seat[data-seat="${seatIdx}"]`);
   if (!fromEl) return;
-  const f = (fromEl as HTMLElement).getBoundingClientRect();
-  const sx = f.left + f.width / 2, sy = f.top + f.height / 2;
+  const f = localCenter(fromEl);
+  const sx = f.cx, sy = f.cy;
   const { cx, cy } = scatterTarget();
   const colors = chipColors(amount, 8);
   if (!colors.length) colors.push('r');
@@ -169,7 +184,7 @@ function flyChips(seatIdx: number, amount: number, mySeat: number, spread = 18):
     chip.className = `flyChip chip ${color}`;
     chip.style.left = `${sx}px`;
     chip.style.top = `${sy}px`;
-    document.body.append(chip);
+    stageEl.append(chip);
     // potBox 위 한 구역으로 모이게(spread 작을수록 딱 모임)
     const rx = cx + (Math.random() * 2 - 1) * spread;
     const ry = cy + (Math.random() * 2 - 1) * Math.max(4, spread / 2);
@@ -200,8 +215,8 @@ function gatherChips(): void {
   scatterEls = [];
   sfx.chip(); // 싸사삭
   els.forEach((el, i) => {
-    const r = el.getBoundingClientRect();
-    const dx = tx - (r.left + r.width / 2), dy = ty - (r.top + r.height / 2);
+    const c = localCenter(el);
+    const dx = tx - c.cx, dy = ty - c.cy;
     const a = el.animate(
       [
         { transform: 'translate(-50%,-50%)' },
@@ -263,15 +278,15 @@ function runTransitions(v: View): void {
 // dealAnimUntil이 soloStep보다 먼저 잡혀 연출이 안 끊긴다.
 let dealAnimUntil = 0; // 이 시각까지는 솔로 AI가 기다림(연출 안 끊기게)
 function animateDeal(): void {
-  const cx = window.innerWidth / 2, cy = 4; // 화면 최상단 가운데(딜러)
+  const cx = STAGE_W / 2, cy = 4; // 무대 최상단 가운데(딜러)
   const all = Array.from(document.querySelectorAll('.card.dealt')) as HTMLElement[];
   all.forEach((el) => el.classList.remove('dealt'));
   const faces = all.filter((el) => !el.classList.contains('back')); // 앞면 있는 카드 → 뒷면으로 와서 뒤집기
   const backs = all.filter((el) => el.classList.contains('back'));   // 상대 히든 → 그냥 안착
   const FLY = 300;
   const flyFrom = (el: HTMLElement, delay: number): void => {
-    const r = el.getBoundingClientRect();
-    const dx = cx - (r.left + r.width / 2), dy = cy - (r.top + r.height / 2);
+    const c = localCenter(el);
+    const dx = cx - c.cx, dy = cy - c.cy;
     el.animate(
       [
         { transform: `translate(${dx}px,${dy}px) scale(.3) rotate(-7deg)`, opacity: 0 },
@@ -308,13 +323,14 @@ function animateDeal(): void {
 
 // 버리는 연출 — 버릴 카드가 위(딜러 쪽)로 회전·축소·페이드되며 날아가 사라지고, 공개 카드는 팝.
 function discardFly(rect: DOMRect, card: Card, openId: number): void {
+  const b = localBox(rect); // 화면 좌표 → 무대 로컬
   const ghost = cardEl(card); // 실제 버린 카드(날아가며 회전)
-  ghost.style.cssText = `position:fixed;left:${rect.left}px;top:${rect.top}px;width:${rect.width}px;height:${rect.height}px;z-index:40;margin:0;`;
-  document.body.append(ghost);
+  ghost.style.cssText = `position:absolute;left:${b.left}px;top:${b.top}px;width:${b.width}px;height:${b.height}px;z-index:40;margin:0;`;
+  stageEl.append(ghost);
   // 카드 위치 기준 가까운 쪽 옆(왼/오른)으로 날아가 사라짐
-  const cardCx = rect.left + rect.width / 2;
-  const goLeft = cardCx < window.innerWidth / 2;
-  const tx = goLeft ? -(cardCx + rect.width) : (window.innerWidth - cardCx + rect.width);
+  const cardCx = b.left + b.width / 2;
+  const goLeft = cardCx < STAGE_W / 2;
+  const tx = goLeft ? -(cardCx + b.width) : (STAGE_W - cardCx + b.width);
   const rot = goLeft ? -150 : 150;
   sfx.toss();
   const anim = ghost.animate(
@@ -548,7 +564,7 @@ function renderMyCards(v: View): void {
       const old = oldRects.get(Number(c.dataset.id));
       if (!old) return;
       const nr = c.getBoundingClientRect();
-      const dx = old.left - nr.left, dy = old.top - nr.top;
+      const dx = (old.left - nr.left) / stageScale, dy = (old.top - nr.top) / stageScale; // 무대 스케일 보정
       if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
       c.animate([{ transform: `translate(${dx}px,${dy}px)` }, { transform: 'none' }],
         { duration: 280, easing: 'cubic-bezier(.3,.7,.3,1)' });
@@ -662,7 +678,7 @@ function firework(x: number, y: number): void {
     p.className = 'spark';
     p.style.left = `${x}px`; p.style.top = `${y}px`;
     p.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
-    document.body.append(p);
+    stageEl.append(p);
     const ang = (i / 24) * Math.PI * 2, dist = 70 + Math.random() * 80;
     const dx = Math.cos(ang) * dist, dy = Math.sin(ang) * dist;
     const a = p.animate(
@@ -681,9 +697,9 @@ function celebrate(): void {
     const p = document.createElement('div');
     p.className = 'confetti';
     p.style.background = CONFETTI_COLORS[i % CONFETTI_COLORS.length];
-    p.style.left = `${5 + Math.random() * 90}vw`;
-    document.body.append(p);
-    const dx = (Math.random() * 2 - 1) * 140, dy = window.innerHeight + 40, rot = (Math.random() * 2 - 1) * 720;
+    p.style.left = `${Math.random() * STAGE_W}px`;
+    stageEl.append(p);
+    const dx = (Math.random() * 2 - 1) * 120, dy = STAGE_H + 40, rot = (Math.random() * 2 - 1) * 720;
     const a = p.animate(
       [
         { transform: 'translateY(-30px) rotate(0)', opacity: 1 },
@@ -694,10 +710,9 @@ function celebrate(): void {
     );
     a.onfinish = () => p.remove();
   }
-  // 불꽃 몇 발(시차)
-  const W = window.innerWidth, H = window.innerHeight;
+  // 불꽃 몇 발(시차) — 무대 좌표
   [[0.25, 0.3], [0.7, 0.25], [0.5, 0.45], [0.85, 0.5]].forEach(([fx, fy], i) =>
-    setTimeout(() => { firework(W * fx, H * fy); sfx.chip(); }, 200 + i * 320));
+    setTimeout(() => { firework(STAGE_W * fx, STAGE_H * fy); sfx.chip(); }, 200 + i * 320));
   sfx.win();
 }
 
@@ -863,6 +878,11 @@ async function startMulti(): Promise<void> {
 }
 
 // ── 이벤트 연결 ──────────────────────────────────────────────────────────────
+// 고정 9:16 무대를 뷰포트에 맞춤(레터박스) + 리사이즈/회전 대응
+fitStage();
+window.addEventListener('resize', fitStage);
+window.addEventListener('orientationchange', () => setTimeout(fitStage, 60));
+
 // 첫 탭에서 오디오 잠금 해제 + 모든 버튼에 클릭음
 document.addEventListener('pointerdown', () => unlock(), { once: false });
 document.addEventListener('click', (e) => {
