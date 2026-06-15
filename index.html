@@ -191,7 +191,7 @@
   @keyframes bump { 0%,100% { transform: scale(1); } 45% { transform: scale(1.35); } }
 
   /* ── 중앙 ── */
-  #center { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; flex: 1; justify-content: center; width: 100%; }
+  #center { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; flex: 1; justify-content: center; width: 100%; }
   #street { font-size: 13px; color: #bfe6d2; font-weight: 700; letter-spacing: 1px; }
   /* 칩 기둥(종류별로 쌓임) */
   #chipPile { display: flex; gap: 9px; justify-content: center; align-items: flex-end; min-height: 66px; padding-bottom: 5px; }
@@ -208,10 +208,12 @@
   #myStack .stack .chip { margin-bottom: -8px; }
   #myStack .stack .chip:first-child { margin-bottom: 0; }
   /* Total / Call 박스 */
+  /* Total/Call 박스 — 가운데 칩 공간을 비우려고 우측 중앙으로 띄움(칩 더미는 가운데 유지) */
   #potBox {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 5;
     background: linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.7));
     border: 1.5px solid rgba(245,197,66,.6); border-radius: 12px;
-    padding: 7px 16px; min-width: 230px; box-shadow: 0 4px 14px rgba(0,0,0,.4);
+    padding: 7px 14px; min-width: 120px; box-shadow: 0 4px 14px rgba(0,0,0,.4);
   }
   .potrow { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; }
   .potrow .k { font-size: 12px; color: #cfe8da; font-weight: 700; }
@@ -305,15 +307,15 @@
   .rrow .cards { display: flex; }
   #resultBtns { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
 
-  /* 옵션(⚙️) 버튼 하나로 통합 — 상단 가운데쯤 */
+  /* 옵션(⚙️) 버튼 하나로 통합 — 우측 상단 코너 */
   #optToggle {
-    position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 50;
+    position: fixed; top: calc(8px + env(safe-area-inset-top)); right: 10px; z-index: 50;
     width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); cursor: pointer;
     background: rgba(0,0,0,.5); color: #fff; font-size: 18px;
   }
-  /* 옵션 패널(오토·소리·볼륨 전부) — 옵션 버튼 아래 가운데 */
+  /* 옵션 패널(오토·소리·볼륨 전부) — 옵션 버튼 아래 우측 */
   #audioPanel {
-    position: fixed; top: calc(52px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 55;
+    position: fixed; top: calc(52px + env(safe-area-inset-top)); right: 10px; z-index: 55;
     display: none; flex-direction: column; gap: 12px; min-width: 210px;
     background: rgba(0,0,0,.9); padding: 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.22);
     box-shadow: 0 6px 18px rgba(0,0,0,.5);
