@@ -305,33 +305,32 @@
   .rrow .cards { display: flex; }
   #resultBtns { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
 
-  /* 음소거 토글 */
-  #soundToggle {
-    position: fixed; top: calc(16px + env(safe-area-inset-top)); right: 8px; z-index: 50;
-    width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer;
-    background: rgba(0,0,0,.4); color: #fff; font-size: 18px;
+  /* 옵션(⚙️) 버튼 하나로 통합 — 상단 가운데쯤 */
+  #optToggle {
+    position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 50;
+    width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); cursor: pointer;
+    background: rgba(0,0,0,.5); color: #fff; font-size: 18px;
   }
-  #autoToggle {
-    display: none;
-    position: fixed; top: calc(16px + env(safe-area-inset-top)); left: 8px; z-index: 50;
-    padding: 8px 14px; border-radius: 19px; border: 2px solid rgba(255,255,255,.3); cursor: pointer;
-    background: rgba(0,0,0,.4); color: #cfe8da; font-size: 13px; font-weight: 800;
-  }
-  #autoToggle.on { background: linear-gradient(#ffe07a, var(--gold-deep)); color: #2a1a05; border-color: #fff; }
-  #cfgToggle {
-    position: fixed; top: calc(16px + env(safe-area-inset-top)); right: 54px; z-index: 50;
-    width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer;
-    background: rgba(0,0,0,.4); color: #fff; font-size: 17px;
-  }
+  /* 옵션 패널(오토·소리·볼륨 전부) — 옵션 버튼 아래 가운데 */
   #audioPanel {
-    position: fixed; top: calc(52px + env(safe-area-inset-top)); right: 8px; z-index: 55;
-    display: none; flex-direction: column; gap: 12px;
-    background: rgba(0,0,0,.85); padding: 14px 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.22);
+    position: fixed; top: calc(52px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 55;
+    display: none; flex-direction: column; gap: 12px; min-width: 210px;
+    background: rgba(0,0,0,.9); padding: 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.22);
     box-shadow: 0 6px 18px rgba(0,0,0,.5);
   }
   #audioPanel.show { display: flex; }
   #audioPanel label { font-size: 13px; font-weight: 700; color: #cfe8da; display: flex; flex-direction: column; gap: 7px; }
-  #audioPanel input[type=range] { width: 170px; accent-color: var(--gold); }
+  #audioPanel label.row { flex-direction: row; align-items: center; justify-content: space-between; }
+  #audioPanel input[type=range] { width: 100%; accent-color: var(--gold); }
+  #autoToggle {
+    padding: 10px 14px; border-radius: 12px; border: 2px solid rgba(255,255,255,.3); cursor: pointer;
+    background: rgba(255,255,255,.12); color: #cfe8da; font-size: 15px; font-weight: 800;
+  }
+  #autoToggle.on { background: linear-gradient(#ffe07a, var(--gold-deep)); color: #2a1a05; border-color: #fff; }
+  #soundToggle {
+    width: 40px; height: 34px; border-radius: 9px; border: 1px solid rgba(255,255,255,.3); cursor: pointer;
+    background: rgba(255,255,255,.12); color: #fff; font-size: 18px;
+  }
 
   #inappGuide {
     display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 70;
@@ -378,10 +377,10 @@
 </style>
 </head>
 <body>
-  <button id="soundToggle" title="소리 켜기/끄기">🔊</button>
-  <button id="cfgToggle" title="볼륨 조절">⚙️</button>
-  <button id="autoToggle" title="자동 진행">오토 OFF</button>
+  <button id="optToggle" title="옵션">⚙️</button>
   <div id="audioPanel">
+    <button id="autoToggle" title="자동 진행">오토 OFF</button>
+    <label class="row">소리 <button id="soundToggle" title="소리 켜기/끄기">🔊</button></label>
     <label>배경음 <input type="range" id="volMusic" min="0" max="100" /></label>
     <label>효과음 <input type="range" id="volSfx" min="0" max="100" /></label>
   </div>

@@ -33,7 +33,6 @@ let curScreen = '';
 function show(id: 'lobby' | 'waiting' | 'game'): void {
   for (const s of ['lobby', 'waiting', 'game']) $(s).classList.toggle('show', s === id);
   if (id !== 'game') $('overlay').classList.remove('show');
-  $('autoToggle').style.display = id === 'game' ? 'block' : 'none';
   // 배경음악은 화면이 실제로 바뀔 때만 제어(매 렌더마다 play() 호출 방지)
   if (id !== curScreen) { if (id === 'game') bgm.start(); else bgm.stop(); curScreen = id; }
 }
@@ -898,8 +897,8 @@ soundBtn.onclick = () => {
   localStorage.setItem('sp_sound', on ? 'on' : 'off');
 };
 
-// 볼륨 조절 패널(⚙️) — 배경음/효과음 슬라이더
-const cfgBtn = $('cfgToggle');
+// 옵션 패널(⚙️) — 오토·소리·배경음/효과음 전부
+const cfgBtn = $('optToggle');
 const panel = $('audioPanel');
 const volMusic = $('volMusic') as HTMLInputElement;
 const volSfx = $('volSfx') as HTMLInputElement;
