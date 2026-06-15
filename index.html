@@ -1,0 +1,444 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>7포커</title>
+<script>
+  // 카톡 등 인앱 브라우저로 열리면 기기 기본 브라우저로 자동 전환(인앱은 오디오·레이아웃 문제 많음).
+  (function () {
+    try {
+      var ua = navigator.userAgent.toLowerCase();
+      var url = location.href;
+      var isAndroid = ua.indexOf('android') > -1;
+      var isKakao = ua.indexOf('kakaotalk') > -1;
+      var otherInApp = /(line|instagram|fban|fbav|naver|daumapps|band|everytimeapp|trill|snapchat)/.test(ua);
+      if (isKakao) {
+        // 카카오톡: 외부 기본 브라우저로 열기
+        location.href = 'kakaotalk://web/openExternal?url=' + encodeURIComponent(url);
+      } else if (otherInApp && isAndroid) {
+        // 안드로이드 기타 인앱: 크롬 인텐트로
+        location.href = 'intent://' + url.replace(/^https?:\/\//, '') + '#Intent;scheme=https;package=com.android.chrome;end';
+      }
+      // 전환이 안 되면(특히 iOS 인앱) 안내 배너 표시
+      if (isKakao || otherInApp) {
+        setTimeout(function () {
+          if (document.hidden) return; // 외부 브라우저로 떠나 백그라운드면 통과
+          var b = document.getElementById('inappGuide');
+          if (b) b.style.display = 'block';
+        }, 1600);
+      }
+    } catch (e) { /* 무시 */ }
+  })();
+</script>
+<style>
+  :root {
+    --felt: #1e6b46;
+    --felt-dark: #0d3320;
+    --gold: #f5c542;
+    --gold-deep: #c9961d;
+    --red: #d23c3c;
+    --blue: #3c79c9;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; -webkit-user-select: none; user-select: none; }
+  html, body { height: 100%; overscroll-behavior: none; }
+  body {
+    font-family: 'Apple SD Gothic Neo', 'Noto Sans KR', sans-serif;
+    background: #000; /* 레터박스(남는 위아래/좌우 여백) */
+    color: #fff; height: 100vh; height: 100dvh; overflow: hidden;
+  }
+  /* 고정 9:16 무대 — 뷰포트에 맞춰 통째로 축소(JS fitStage). 어느 기기든 설계 그대로 + 레터박스 */
+  #stage {
+    position: fixed; left: 50%; top: 50%; width: 432px; height: 768px;
+    transform: translate(-50%,-50%); transform-origin: center center; overflow: hidden;
+    background: radial-gradient(ellipse 120% 80% at 50% 28%, var(--felt) 0%, var(--felt-dark) 70%, #06200f 100%);
+  }
+  .screen { display: none; position: absolute; inset: 0; }
+  .screen.show { display: flex; flex-direction: column; align-items: center; }
+
+  /* ── 로비 ── */
+  #lobby.show { justify-content: center; gap: 18px; padding: 20px; }
+  #lobby h1 { font-size: 52px; letter-spacing: 8px; color: var(--gold);
+    text-shadow: 0 0 18px rgba(245,197,66,.5), 0 4px 10px rgba(0,0,0,.5); }
+  #lobby .sub { color: #cfe8da; font-size: 14px; text-align: center; }
+  #lobby input {
+    padding: 14px 16px; border-radius: 12px; border: none; font-size: 16px;
+    width: 260px; text-align: center;
+  }
+  .btn {
+    padding: 14px 28px; border-radius: 14px; border: none; cursor: pointer;
+    font-size: 17px; font-weight: 800; color: #2a1a05;
+    background: linear-gradient(#ffe07a, var(--gold) 55%, var(--gold-deep));
+    box-shadow: 0 4px 0 #936a10, 0 6px 12px rgba(0,0,0,.35); transition: transform .06s, box-shadow .06s;
+  }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 #936a10, 0 2px 6px rgba(0,0,0,.35); }
+  .btn.ghost { background: rgba(255,255,255,.14); color: #fff; box-shadow: 0 4px 0 rgba(0,0,0,.3); }
+  .btn:disabled { opacity: .4; cursor: default; }
+  #onlineCount { color: #cfe8da; font-size: 13px; }
+  #waiting.show { justify-content: center; gap: 16px; padding: 20px; }
+
+  /* ── 게임 테이블(세로) ── */
+  #game.show { justify-content: space-between; padding: 38px 6px 10px;
+    max-width: 520px; margin: 0 auto; width: 100%; }
+
+  /* 상대 좌석 — 상단 한 줄(최대 3명) */
+  #opps { display: flex; justify-content: center; gap: 6px; width: 100%; }
+  .seat {
+    flex: 1 1 0; min-width: 0; max-width: 160px;
+    background: linear-gradient(rgba(0,0,0,.28), rgba(0,0,0,.42));
+    border-radius: 14px; padding: 6px 6px 8px; border: 2px solid transparent;
+    transition: border-color .2s, box-shadow .2s; position: relative;
+  }
+  .seat.turn { border-color: var(--gold); box-shadow: 0 0 14px rgba(245,197,66,.55); }
+  .seat.folded { opacity: .42; }
+  .seat .top { display: flex; align-items: center; gap: 6px; }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; font-weight: 900; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.5);
+    background: radial-gradient(circle at 35% 28%, hsl(var(--hue,205) 70% 62%), hsl(var(--hue,205) 65% 38%));
+    border: 2px solid rgba(255,255,255,.55); box-shadow: 0 2px 5px rgba(0,0,0,.4);
+  }
+
+  /* 포커 칩 — 비스듬히 본 타원, 두께(옆면)와 가운데 면. 균일 간격으로 층층이 쌓이게. */
+  .chip {
+    --face: #ff7b7b; --edge: #d23c3c; --rim: #8e1f1f;
+    position: relative;
+    width: 30px; height: 14px; border-radius: 50%;
+    background: radial-gradient(ellipse 75% 85% at 50% 30%, var(--face), var(--edge) 80%);
+    box-shadow: 0 2px 0 var(--rim), 0 4px 3px rgba(0,0,0,.4);
+  }
+  .chip::after { /* 가운데 면(점선 테) */
+    content: ''; position: absolute; inset: 3px 8px; border-radius: 50%;
+    border: 1px dashed rgba(255,255,255,.6);
+  }
+  .chip.r { --face:#ff7b7b; --edge:#d23c3c; --rim:#8e1f1f; }
+  .chip.b { --face:#7bb3ff; --edge:#2f5fa8; --rim:#1d3c6e; }
+  .chip.g { --face:#6fd99a; --edge:#1e8a52; --rim:#125f38; }
+  .chip.k { --face:#6f6f6f; --edge:#262626; --rim:#000; }
+  .seat .who { min-width: 0; flex: 1; }
+  .seat .nm { font-size: 12px; font-weight: 800; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seat .chips { font-size: 11px; color: #ffe08a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .seat .cards { display: flex; flex-wrap: wrap; margin-top: 6px; justify-content: center; align-content: flex-start;
+    gap: 3px; min-height: 94px; max-width: 134px; margin-left: auto; margin-right: auto; }
+
+  .badge { font-size: 9px; background: var(--red); border-radius: 6px; padding: 1px 5px; font-weight: 800; white-space: nowrap; }
+  .badge.boss { background: var(--blue); }
+  .badge.allin { background: #b13ad2; }
+
+  /* 좌석에 그 사람이 한 액션(체크/콜/따당…) 표시 */
+  .seatact {
+    position: absolute; top: -9px; left: 6px; font-size: 11px; font-weight: 800;
+    color: #fff; background: linear-gradient(#3c79c9, #234e87);
+    border: 1px solid rgba(255,255,255,.6); border-radius: 10px; padding: 2px 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,.45); white-space: nowrap; z-index: 2;
+  }
+  .seatact.inline { position: static; display: inline-block; margin-left: 4px; top: 0; padding: 1px 7px; }
+
+  /* 좌석 위에 뜨는 베팅칩 표시 */
+  .seatbet {
+    position: absolute; top: -8px; right: 6px; font-size: 10px; font-weight: 800;
+    color: #2a1a05; background: linear-gradient(#ffe07a, var(--gold-deep));
+    border-radius: 10px; padding: 1px 7px; box-shadow: 0 2px 4px rgba(0,0,0,.4); white-space: nowrap;
+  }
+
+  /* ── 카드 ── */
+  .card {
+    width: 84px; height: 118px; border-radius: 10px; background: linear-gradient(#fff, #eef0f4);
+    color: #1a1a2e; box-shadow: 0 3px 8px rgba(0,0,0,.45); position: relative; flex-shrink: 0;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    font-weight: 900; line-height: 1; border: 1px solid #d4d8e0;
+  }
+  .card .r { font-size: 38px; }
+  .card .s { font-size: 32px; margin-top: 4px; }
+  .card.red { color: #d4202a; }
+  .card.back {
+    background:
+      repeating-linear-gradient(45deg, #4a5fa5 0 7px, #3c4f8c 7px 14px),
+      linear-gradient(#4a5fa5, #34457a);
+    border: 2px solid #fff;
+  }
+  .card.back::after { content: '🂠'; color: rgba(255,255,255,.35); font-size: 22px; }
+  /* 작은 카드(상대) — 겹치지 않고 2줄로 펼쳐 보기 쉽게 */
+  .card.sm {
+    width: 30px; height: 44px; border-radius: 5px;
+    justify-content: center; align-items: center; padding: 0;
+  }
+  .card.sm .r { font-size: 15px; }
+  .card.sm .s { font-size: 13px; margin-top: 1px; }
+  .card.sm.back::after { font-size: 16px; }
+  /* 상대 덮은 패(뒷면)는 연속되면 겹쳐서 ~1장 폭으로(자리 절약) */
+  .card.sm.back + .card.sm.back { margin-left: -30px; }
+  .card.mine { cursor: pointer; transition: transform .12s; }
+  .card.selDiscard { outline: 3px solid var(--red); outline-offset: 1px; transform: translateY(-12px); }
+  .card.selOpen { outline: 3px solid #58d68d; outline-offset: 1px; transform: translateY(-12px); }
+  .card.best { outline: 3px solid var(--gold); outline-offset: 1px; box-shadow: 0 0 12px rgba(245,197,66,.7); }
+  /* 분배 중 뒷면(날아오는 동안) — 절반 돌면 앞면으로 교체 */
+  .card.dealback {
+    /* 좌우대칭 크로스해치 — rotateY(180) 거울상에도 무늬가 안 튐 */
+    background:
+      repeating-linear-gradient(45deg, rgba(0,0,0,.16) 0 6px, transparent 6px 12px),
+      repeating-linear-gradient(-45deg, rgba(0,0,0,.16) 0 6px, transparent 6px 12px),
+      linear-gradient(#4a5fa5, #34457a);
+    border: 2px solid #fff; color: transparent;
+  }
+  .card.dealback .r, .card.dealback .s { visibility: hidden; }
+  .card.dealIn { animation: dealIn .3s cubic-bezier(.2,.7,.3,1.2) both; }
+  @keyframes dealIn {
+    from { transform: translate(var(--dx, 0), -180px) scale(.5) rotate(-12deg); opacity: 0; }
+    to { transform: none; opacity: 1; }
+  }
+  /* 날아가는 칩 */
+  .flyChip {
+    position: fixed; z-index: 35; pointer-events: none; font-size: 20px;
+    will-change: transform, opacity; transform: translate(-50%, -50%);
+  }
+  #chipPile.bump { animation: bump .3s ease; }
+  @keyframes bump { 0%,100% { transform: scale(1); } 45% { transform: scale(1.35); } }
+
+  /* ── 중앙 ── */
+  #center { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0; flex: 1; justify-content: center; width: 100%; }
+  #street { font-size: 13px; color: #bfe6d2; font-weight: 700; letter-spacing: 1px; }
+  /* 칩 기둥(종류별로 쌓임) */
+  #chipPile { display: flex; gap: 9px; justify-content: center; align-items: flex-end; min-height: 66px; padding-bottom: 5px; }
+  .stack { display: flex; flex-direction: column-reverse; align-items: center; }
+  /* column-reverse에선 margin-bottom으로 겹쳐야 모든 칩(맨 아래-둘째 포함)이 균일하게 겹침 */
+  .stack .chip { margin-bottom: -11px; } /* 14px 높이에서 약 3px 띠만 보이게 — 촘촘·균일 */
+  .stack .chip:first-child { margin-bottom: 0; }
+  .chip.pop { animation: chipPop .25s ease both; }
+  @keyframes chipPop { from { transform: translateY(-14px) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
+  /* 내 보유 칩 스택(작게) */
+  #myStack { display: flex; gap: 6px; align-items: flex-end; min-height: 26px; flex-shrink: 0; padding-bottom: 2px; }
+  #myStack .chip { width: 22px; height: 11px; box-shadow: 0 2px 0 var(--rim), 0 3px 2px rgba(0,0,0,.4); }
+  #myStack .chip::after { inset: 2px 6px; }
+  #myStack .stack .chip { margin-bottom: -8px; }
+  #myStack .stack .chip:first-child { margin-bottom: 0; }
+  /* Total / Call 박스 */
+  /* Total/Call 박스 — 가운데 칩 공간을 비우려고 우측 중앙으로 띄움(칩 더미는 가운데 유지) */
+  #potBox {
+    position: absolute; left: 0; top: 50%; transform: translateY(-50%); z-index: 5;
+    background: linear-gradient(rgba(0,0,0,.55), rgba(0,0,0,.7));
+    border: 1.5px solid rgba(245,197,66,.6); border-radius: 12px;
+    padding: 7px 14px; min-width: 120px; box-shadow: 0 4px 14px rgba(0,0,0,.4);
+  }
+  .potrow { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; }
+  .potrow .k { font-size: 12px; color: #cfe8da; font-weight: 700; }
+  .potrow .v { font-size: 20px; font-weight: 900; color: var(--gold); }
+  .potrow.call .v { font-size: 16px; color: #fff; }
+  #seed { font-size: 11px; color: #9fd6c0; margin-top: 2px; }
+
+  /* 액션 콜아웃(따당!/콜/다이…) */
+  #callout {
+    position: fixed; left: 50%; top: 30%; transform: translateX(-50%);
+    pointer-events: none; z-index: 30; display: none; text-align: center;
+  }
+  #callout.show { display: block; animation: callout 1.1s ease-out forwards; }
+  #callout .who { font-size: 13px; color: #ffe08a; font-weight: 700; }
+  #callout .act {
+    font-size: 44px; font-weight: 900; letter-spacing: 2px;
+    color: #fff; text-shadow: 0 0 18px rgba(245,197,66,.9), 0 4px 8px rgba(0,0,0,.6);
+    -webkit-text-stroke: 1.5px var(--gold-deep);
+  }
+  #callout.die .act { -webkit-text-stroke: 1.5px #7a1414; text-shadow: 0 0 16px rgba(210,60,60,.9), 0 4px 8px rgba(0,0,0,.6); }
+  @keyframes callout {
+    0% { transform: translateX(-50%) scale(.4); opacity: 0; }
+    18% { transform: translateX(-50%) scale(1.15); opacity: 1; }
+    32% { transform: translateX(-50%) scale(1); }
+    72% { opacity: 1; }
+    100% { transform: translateX(-50%) scale(1) translateY(-30px); opacity: 0; }
+  }
+
+  /* ── 내 영역 ── */
+  #me { width: 100%; background: linear-gradient(rgba(0,0,0,.3), rgba(0,0,0,.5));
+    border-radius: 16px; padding: 10px 10px 12px; border: 2px solid transparent; transition: border-color .2s, box-shadow .2s;
+    min-height: 408px; display: flex; flex-direction: column; } /* 커졌다 작아졌다 방지 — 큰 크기로 고정(카드 2줄 자리 미리 확보) */
+  #me.turn { border-color: var(--gold); box-shadow: 0 0 16px rgba(245,197,66,.5); }
+  /* 윗줄: [좌 내정보] [가운데 족보·안내] [우 내 칩] — 족보·안내를 이 줄로 올려 카드 공간 확보 */
+  #meTop { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  #myInfo { display: flex; align-items: center; gap: 7px; font-size: 14px; flex-shrink: 0; }
+  #myInfo .avatar { width: 30px; height: 30px; font-size: 16px; }
+  #myInfo .nm { font-weight: 800; }
+  #myInfo .chips { color: #ffe08a; font-weight: 700; font-size: 13px; }
+  #meCenter { flex: 1; min-width: 0; text-align: center; line-height: 1.15; }
+  /* 타이머 바 */
+  #timerWrap { height: 5px; background: rgba(0,0,0,.4); border-radius: 3px; overflow: hidden; margin: 3px 0; display: none; }
+  #timerWrap.show { display: block; }
+  #timerBar { height: 100%; width: 100%; background: linear-gradient(90deg, #58d68d, var(--gold)); transition: width .25s linear; }
+  #timerBar.low { background: linear-gradient(90deg, #ff8a4c, var(--red)); }
+  #myHand { font-size: 16px; font-weight: 900; color: var(--gold); text-shadow: 0 1px 3px rgba(0,0,0,.5); letter-spacing: .3px; }
+  #prompt { font-size: 12.5px; color: #ffe9a8; font-weight: 700; min-height: 16px; }
+  /* 7장이면 한 줄에 4장 → 2줄. 카드 자리(2줄)를 미리 확보해 레이아웃이 안 흔들리게 */
+  #myCards { display: flex; gap: 6px; justify-content: center; align-content: center; flex-wrap: wrap;
+    padding: 6px 4px 18px; flex: 1; min-height: 252px; max-width: 372px; margin: 0 auto; }
+  #actions { display: flex; gap: 7px; justify-content: center; flex-wrap: wrap; margin-top: 4px; min-height: 50px; align-items: center; }
+  #actions .btn { font-size: 15px; padding: 12px 16px; flex: 1 1 auto; min-width: 72px; max-width: 130px; }
+  #actions .btn.danger { background: linear-gradient(#ff6b6b, var(--red)); color: #fff; box-shadow: 0 4px 0 #7a1414, 0 6px 12px rgba(0,0,0,.35); }
+
+  /* ── 승리 배너 / 결과 ── */
+  #overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.78); display: none;
+    flex-direction: column; justify-content: center; align-items: center; z-index: 40; padding: 16px;
+  }
+  #overlay.show { display: flex; }
+  #winBanner { text-align: center; margin-bottom: 10px; animation: dropIn .4s ease both; }
+  @keyframes dropIn { from { transform: translateY(-40px) scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+  #winCat {
+    font-size: 30px; font-weight: 900; letter-spacing: 1px;
+    background: linear-gradient(#fff7d6, var(--gold) 50%, var(--gold-deep));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    text-shadow: 0 0 22px rgba(245,197,66,.5); line-height: 1.1;
+  }
+  #winCards { display: flex; gap: 5px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
+  #winPay { font-size: 60px; font-weight: 900; color: #7fffa6; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+    text-shadow: 0 0 18px rgba(127,255,166,.6), 0 3px 10px rgba(0,0,0,.6);
+    font-variant-numeric: tabular-nums; }
+  /* 공항 현황판식 자릿수 롤링 */
+  #winPay .pre, #winPay .suf, #winPay .comma { line-height: 1; }
+  #winPay .suf { font-size: 0.55em; margin-left: .12em; }
+  #winPay .dcell { display: inline-block; height: 1em; overflow: hidden; vertical-align: top; }
+  #winPay .dstrip { display: flex; flex-direction: column; transform: translateY(0);
+    transition: transform 1.15s cubic-bezier(.16,.84,.24,1); will-change: transform; }
+  #winPay .dstrip > span { height: 1em; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  #winPay.landed { animation: payLand .42s cubic-bezier(.2,1.5,.4,1) both; }
+  @keyframes payLand { 0% { transform: scale(1.18); } 60% { transform: scale(.96); } 100% { transform: scale(1); } }
+  #winSub { font-size: 13px; color: #cfe8da; margin-top: 4px; }
+  #resultBox {
+    background: linear-gradient(#173d29, #0e2b1c); border: 2px solid var(--gold); border-radius: 16px;
+    padding: 16px; max-width: 460px; width: 100%; max-height: 52vh; overflow-y: auto;
+  }
+  .rrow { display: flex; align-items: center; gap: 8px; padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,.1); flex-wrap: wrap; }
+  .rrow .nm { width: 84px; font-size: 13px; font-weight: 800; }
+  .rrow .cat { font-size: 12px; color: #9fd6ff; width: 100%; }
+  .rrow .cards { display: flex; }
+  #resultBtns { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+
+  /* 옵션(⚙️) 버튼 하나로 통합 — 우측 상단 코너 */
+  #optToggle {
+    position: fixed; top: 8px; right: 10px; z-index: 50;
+    width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(255,255,255,.25); cursor: pointer;
+    background: rgba(0,0,0,.5); color: #fff; font-size: 18px;
+  }
+  /* 옵션 패널(오토·소리·볼륨 전부) — 옵션 버튼 아래 우측 */
+  #audioPanel {
+    position: fixed; top: 52px; right: 10px; z-index: 55;
+    display: none; flex-direction: column; gap: 12px; min-width: 210px;
+    background: rgba(0,0,0,.9); padding: 16px; border-radius: 14px; border: 1px solid rgba(255,255,255,.22);
+    box-shadow: 0 6px 18px rgba(0,0,0,.5);
+  }
+  #audioPanel.show { display: flex; }
+  #audioPanel label { font-size: 13px; font-weight: 700; color: #cfe8da; display: flex; flex-direction: column; gap: 7px; }
+  #audioPanel label.row { flex-direction: row; align-items: center; justify-content: space-between; }
+  #audioPanel input[type=range] { width: 100%; accent-color: var(--gold); }
+  #autoToggle {
+    padding: 10px 14px; border-radius: 12px; border: 2px solid rgba(255,255,255,.3); cursor: pointer;
+    background: rgba(255,255,255,.12); color: #cfe8da; font-size: 15px; font-weight: 800;
+  }
+  #autoToggle.on { background: linear-gradient(#ffe07a, var(--gold-deep)); color: #2a1a05; border-color: #fff; }
+  #soundToggle {
+    width: 40px; height: 34px; border-radius: 9px; border: 1px solid rgba(255,255,255,.3); cursor: pointer;
+    background: rgba(255,255,255,.12); color: #fff; font-size: 18px;
+  }
+
+  #inappGuide {
+    display: none; position: fixed; top: 0; left: 0; right: 0; z-index: 70;
+    background: rgba(20,40,28,.97); color: #fff; padding: 14px 16px; font-size: 14px; line-height: 1.5;
+    text-align: center; border-bottom: 2px solid var(--gold); box-shadow: 0 4px 14px rgba(0,0,0,.5);
+  }
+  #inappGuide b { color: var(--gold); }
+  #inappGuide button {
+    display: block; margin: 10px auto 0; padding: 8px 18px; border: none; border-radius: 10px;
+    background: var(--gold); color: #2a1a05; font-weight: 800; font-size: 14px;
+  }
+
+  /* 축하 폭죽·컨페티 */
+  .confetti { position: absolute; top: -20px; width: 9px; height: 15px; border-radius: 2px; z-index: 45; pointer-events: none; }
+  .spark { position: absolute; width: 9px; height: 9px; border-radius: 50%; z-index: 45; pointer-events: none; box-shadow: 0 0 8px currentColor; }
+
+  /* (높이 미디어쿼리 제거 — 고정 무대를 통째로 스케일하므로 불필요) */
+
+  #toast {
+    position: fixed; top: 14px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,.85); padding: 10px 18px; border-radius: 10px;
+    font-size: 14px; display: none; z-index: 60;
+  }
+</style>
+  <script type="module" crossorigin src="/seven-poker/assets/index-C8c41Gdg.js"></script>
+</head>
+<body>
+  <div id="stage">
+  <button id="optToggle" title="옵션">⚙️</button>
+  <div id="audioPanel">
+    <button id="autoToggle" title="자동 진행">오토 OFF</button>
+    <label class="row">소리 <button id="soundToggle" title="소리 켜기/끄기">🔊</button></label>
+    <label>배경음 <input type="range" id="volMusic" min="0" max="100" /></label>
+    <label>효과음 <input type="range" id="volSfx" min="0" max="100" /></label>
+  </div>
+
+  <div id="lobby" class="screen show">
+    <h1>7포커</h1>
+    <div class="sub">히든 3장 · 오픈 4장 — 최고의 5장을 만들어라</div>
+    <input id="nameInput" maxlength="12" placeholder="닉네임 (선택)" />
+    <button id="btnSolo" class="btn">혼자 연습 (AI 3명)</button>
+    <button id="btnMulti" class="btn ghost">온라인 대전</button>
+    <div id="onlineCount"></div>
+  </div>
+
+  <div id="waiting" class="screen">
+    <h2>상대를 기다리는 중…</h2>
+    <div id="waitInfo"></div>
+    <button id="btnFillAi" class="btn">남은 자리 AI로 채우고 시작</button>
+    <button id="btnWaitLeave" class="btn ghost">나가기</button>
+  </div>
+
+  <div id="game" class="screen">
+    <div id="opps"></div>
+    <div id="center">
+      <div id="street"></div>
+      <div id="chipPile"></div>
+      <div id="potBox">
+        <div class="potrow"><span class="k">Total</span><span class="v" id="potTotal">0</span></div>
+        <div class="potrow call"><span class="k">Call</span><span class="v" id="potCall">0</span></div>
+      </div>
+      <div id="seed"></div>
+    </div>
+    <div id="me">
+      <div id="meTop">
+        <div id="myInfo"></div>
+        <div id="meCenter"><div id="myHand"></div><div id="prompt"></div></div>
+        <div id="myStack"></div>
+      </div>
+      <div id="timerWrap"><div id="timerBar"></div></div>
+      <div id="myCards"></div>
+      <div id="actions"></div>
+    </div>
+  </div>
+
+  <div id="callout"><div class="who"></div><div class="act"></div></div>
+
+  <div id="overlay">
+    <div id="winBanner">
+      <div id="winCat"></div>
+      <div id="winCards"></div>
+      <div id="winPay"></div>
+      <div id="winSub"></div>
+    </div>
+    <div id="resultBox">
+      <div id="resultRows"></div>
+      <div id="resultBtns">
+        <button id="btnRematch" class="btn">한판 더</button>
+        <button id="btnExit" class="btn ghost">나가기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="inappGuide">
+    📱 인앱 브라우저예요. <b>우측 위 메뉴(⋯ 또는 공유)</b>에서<br>
+    <b>‘다른 브라우저로 열기’ / Safari로 열기</b>를 누르면 더 잘 동작해요.
+    <button onclick="this.parentNode.style.display='none'">닫기</button>
+  </div>
+
+  <div id="toast"></div>
+  </div><!-- /#stage -->
+</body>
+</html>
