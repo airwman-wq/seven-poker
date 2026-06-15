@@ -161,6 +161,8 @@
   .card.sm .r { font-size: 15px; }
   .card.sm .s { font-size: 13px; margin-top: 1px; }
   .card.sm.back::after { font-size: 16px; }
+  /* 상대 덮은 패(뒷면)는 연속되면 겹쳐서 ~1장 폭으로(자리 절약) */
+  .card.sm.back + .card.sm.back { margin-left: -30px; }
   .card.mine { cursor: pointer; transition: transform .12s; }
   .card.selDiscard { outline: 3px solid var(--red); outline-offset: 1px; transform: translateY(-12px); }
   .card.selOpen { outline: 3px solid #58d68d; outline-offset: 1px; transform: translateY(-12px); }
