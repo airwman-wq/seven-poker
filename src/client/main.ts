@@ -182,7 +182,12 @@ function flyChips(seatIdx: number, amount: number, mySeat: number, spread = 18):
       ],
       { duration: 460, delay: i * 45, easing: 'cubic-bezier(.1,.8,.2,1)', fill: 'forwards' }, // 출발 빠르게, 끝은 스르르
     );
-    anim.onfinish = () => { chip.style.transform = 'translate(-50%,-50%)'; chip.style.left = `${rx}px`; chip.style.top = `${ry}px`; };
+    anim.onfinish = () => {
+      // 최종 위치를 인라인으로 고정한 뒤 애니메이션 취소 — fill:forwards가 transform을 붙들어
+      // 위치가 두 배로 어긋나는 것 방지(앤티가 더미가 아니라 출발점 구석에 멈추던 버그).
+      chip.style.left = `${rx}px`; chip.style.top = `${ry}px`; chip.style.transform = 'translate(-50%,-50%)';
+      anim.cancel();
+    };
     scatterEls.push(chip);
   });
 }
