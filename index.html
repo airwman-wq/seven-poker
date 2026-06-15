@@ -72,7 +72,7 @@
   #waiting.show { justify-content: center; gap: 16px; padding: 20px; }
 
   /* ── 게임 테이블(세로) ── */
-  #game.show { justify-content: space-between; padding: calc(50px + env(safe-area-inset-top)) 6px calc(10px + env(safe-area-inset-bottom));
+  #game.show { justify-content: space-between; padding: calc(40px + env(safe-area-inset-top)) 6px calc(10px + env(safe-area-inset-bottom));
     max-width: 520px; margin: 0 auto; width: 100%; }
 
   /* 상대 좌석 — 상단 한 줄(최대 3명) */
@@ -202,7 +202,7 @@
   .chip.pop { animation: chipPop .25s ease both; }
   @keyframes chipPop { from { transform: translateY(-14px) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
   /* 내 보유 칩 스택(작게) */
-  #myStack { display: flex; gap: 6px; align-items: flex-end; min-height: 28px; margin-left: auto; padding-bottom: 4px; }
+  #myStack { display: flex; gap: 6px; align-items: flex-end; min-height: 26px; flex-shrink: 0; padding-bottom: 2px; }
   #myStack .chip { width: 22px; height: 11px; box-shadow: 0 2px 0 var(--rim), 0 3px 2px rgba(0,0,0,.4); }
   #myStack .chip::after { inset: 2px 6px; }
   #myStack .stack .chip { margin-bottom: -8px; }
@@ -245,18 +245,20 @@
     border-radius: 16px; padding: 10px 10px 12px; border: 2px solid transparent; transition: border-color .2s, box-shadow .2s;
     min-height: 408px; display: flex; flex-direction: column; } /* 커졌다 작아졌다 방지 — 큰 크기로 고정(카드 2줄 자리 미리 확보) */
   #me.turn { border-color: var(--gold); box-shadow: 0 0 16px rgba(245,197,66,.5); }
-  #myInfo { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-bottom: 4px; }
+  /* 윗줄: [좌 내정보] [가운데 족보·안내] [우 내 칩] — 족보·안내를 이 줄로 올려 카드 공간 확보 */
+  #meTop { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  #myInfo { display: flex; align-items: center; gap: 7px; font-size: 14px; flex-shrink: 0; }
   #myInfo .avatar { width: 30px; height: 30px; font-size: 16px; }
   #myInfo .nm { font-weight: 800; }
-  #myInfo .chips { margin-left: auto; color: #ffe08a; font-weight: 700; }
+  #myInfo .chips { color: #ffe08a; font-weight: 700; font-size: 13px; }
+  #meCenter { flex: 1; min-width: 0; text-align: center; line-height: 1.15; }
   /* 타이머 바 */
-  #timerWrap { height: 5px; background: rgba(0,0,0,.4); border-radius: 3px; overflow: hidden; margin: 4px 0; display: none; }
+  #timerWrap { height: 5px; background: rgba(0,0,0,.4); border-radius: 3px; overflow: hidden; margin: 3px 0; display: none; }
   #timerWrap.show { display: block; }
   #timerBar { height: 100%; width: 100%; background: linear-gradient(90deg, #58d68d, var(--gold)); transition: width .25s linear; }
   #timerBar.low { background: linear-gradient(90deg, #ff8a4c, var(--red)); }
-  #myHand { text-align: center; font-size: 17px; font-weight: 900; color: var(--gold); min-height: 22px;
-    text-shadow: 0 1px 3px rgba(0,0,0,.5); letter-spacing: .5px; }
-  #prompt { text-align: center; font-size: 14px; color: #ffe9a8; min-height: 20px; margin: 4px 0; font-weight: 700; }
+  #myHand { font-size: 16px; font-weight: 900; color: var(--gold); text-shadow: 0 1px 3px rgba(0,0,0,.5); letter-spacing: .3px; }
+  #prompt { font-size: 12.5px; color: #ffe9a8; font-weight: 700; min-height: 16px; }
   /* 7장이면 한 줄에 4장 → 2줄. 카드 자리(2줄)를 미리 확보해 레이아웃이 안 흔들리게 */
   #myCards { display: flex; gap: 6px; justify-content: center; align-content: center; flex-wrap: wrap;
     padding: 6px 4px 18px; flex: 1; min-height: 252px; max-width: 372px; margin: 0 auto; }
@@ -305,19 +307,19 @@
 
   /* 음소거 토글 */
   #soundToggle {
-    position: fixed; top: calc(8px + env(safe-area-inset-top)); right: 8px; z-index: 50;
+    position: fixed; top: calc(16px + env(safe-area-inset-top)); right: 8px; z-index: 50;
     width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer;
     background: rgba(0,0,0,.4); color: #fff; font-size: 18px;
   }
   #autoToggle {
     display: none;
-    position: fixed; top: calc(8px + env(safe-area-inset-top)); left: 8px; z-index: 50;
+    position: fixed; top: calc(16px + env(safe-area-inset-top)); left: 8px; z-index: 50;
     padding: 8px 14px; border-radius: 19px; border: 2px solid rgba(255,255,255,.3); cursor: pointer;
     background: rgba(0,0,0,.4); color: #cfe8da; font-size: 13px; font-weight: 800;
   }
   #autoToggle.on { background: linear-gradient(#ffe07a, var(--gold-deep)); color: #2a1a05; border-color: #fff; }
   #cfgToggle {
-    position: fixed; top: calc(8px + env(safe-area-inset-top)); right: 54px; z-index: 50;
+    position: fixed; top: calc(16px + env(safe-area-inset-top)); right: 54px; z-index: 50;
     width: 38px; height: 38px; border-radius: 50%; border: none; cursor: pointer;
     background: rgba(0,0,0,.4); color: #fff; font-size: 17px;
   }
@@ -348,7 +350,7 @@
 
   /* 세로 짧은 폰: 카드·내 영역을 줄여 하단(버튼)이 안 잘리게 */
   @media (max-height: 820px) {
-    #game.show { padding-top: calc(42px + env(safe-area-inset-top)); }
+    #game.show { padding-top: calc(34px + env(safe-area-inset-top)); }
     .card { width: 64px; height: 90px; }
     .card .r { font-size: 30px; } .card .s { font-size: 25px; margin-top: 2px; }
     #me { min-height: 300px; }
@@ -356,7 +358,7 @@
     .seat .cards { min-height: 84px; }
   }
   @media (max-height: 680px) {
-    #game.show { padding-top: calc(34px + env(safe-area-inset-top)); }
+    #game.show { padding-top: calc(26px + env(safe-area-inset-top)); }
     .card { width: 52px; height: 72px; }
     .card .r { font-size: 24px; } .card .s { font-size: 20px; }
     #me { min-height: 230px; }
@@ -412,10 +414,12 @@
       <div id="seed"></div>
     </div>
     <div id="me">
-      <div id="myInfo"></div>
+      <div id="meTop">
+        <div id="myInfo"></div>
+        <div id="meCenter"><div id="myHand"></div><div id="prompt"></div></div>
+        <div id="myStack"></div>
+      </div>
       <div id="timerWrap"><div id="timerBar"></div></div>
-      <div id="myHand"></div>
-      <div id="prompt"></div>
       <div id="myCards"></div>
       <div id="actions"></div>
     </div>

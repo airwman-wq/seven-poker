@@ -462,8 +462,7 @@ function render(v: View): void {
     ${avatarHtml(meSeat.name)}
     <div class="who"><div class="nm">${esc(meSeat.name)} ${myBadges}
       ${seatActs[v.mySeat] ? `<span class="seatact inline">${esc(seatActs[v.mySeat])}</span>` : ''}</div>
-      <div class="chips">${fmt(meSeat.chips)} G${meSeat.streetBet > 0 ? ` · 베팅 +${fmt(meSeat.streetBet)}` : ''}</div></div>
-    <div id="myStack"></div>`;
+      <div class="chips">${fmt(meSeat.chips)} G${meSeat.streetBet > 0 ? ` · 베팅 +${fmt(meSeat.streetBet)}` : ''}</div></div>`;
   // 내 보유 칩 스택(낮게) — 칩이 늘 때만 pop
   renderStacks($('myStack'), meSeat.chips, 12, meSeat.chips > prevMyChips);
   prevMyChips = meSeat.chips;
